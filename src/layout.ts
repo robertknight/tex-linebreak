@@ -297,7 +297,6 @@ export function positionBoxes(
 ): PositionedBox[] {
   const lineLen = (i: number) => (Array.isArray(lineLengths) ? lineLengths[i] : lineLengths);
   const result: PositionedBox[] = [];
-  let i = 0;
   for (let b = 0; b < breakpoints.length - 1; b++) {
     // Compute adjustment ratio for line.
     let idealWidth = lineLen(b);
@@ -307,9 +306,11 @@ export function positionBoxes(
 
     for (let p = breakpoints[b]; p < breakpoints[b + 1]; p++) {
       const item = items[p];
-      actualWidth += item.width;
-      if (item.type === 'glue' && p !== breakpoints[b]) {
-        lineShrink += item.width;
+      if (item.type === 'box') {
+        actualWidth += item.width;
+      } else if (item.type === 'glue' && p !== breakpoints[b]) {
+        actualWidth += item.width;
+        lineShrink += item.shrink;
         lineStretch += item.stretch;
       }
     }
@@ -325,7 +326,6 @@ export function positionBoxes(
     let xOffset = 0;
 
     for (let p = breakpoints[b]; p < breakpoints[b + 1]; p++) {
-      ++i;
       const item = items[p];
       if (item.type === 'box') {
         result.push({
