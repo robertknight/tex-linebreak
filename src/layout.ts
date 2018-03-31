@@ -170,6 +170,8 @@ export function breakLines(
       continue;
     }
 
+    // TODO - Provide some way to ensure that layout succeeds if it is not
+    // possible to lay the paragraph out with the specified adjustment options.
     if (active.size === 0) {
       throw new Error(`Empty active node set after item ${b}`);
     }
@@ -396,7 +398,7 @@ export function layoutItemsFromString(
   const shrink = Math.max(0, spaceWidth - 2);
   words.forEach(w => {
     const b: TextBox = { type: 'box', width: measureFn(w), text: w };
-    const g: Glue = { type: 'glue', width: spaceWidth, shrink, stretch: 20 };
+    const g: Glue = { type: 'glue', width: spaceWidth, shrink, stretch: spaceWidth * 1.5 };
     items.push(b, g);
   });
   // Add "finishing glue" to space out final line.
