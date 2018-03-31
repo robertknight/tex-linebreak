@@ -89,6 +89,7 @@ function renderSpans(el: HTMLElement, t: string) {
 const textarea = document.querySelector('textarea')!;
 const canvas = document.querySelector('canvas')!;
 const para = document.querySelector('.output-p')! as HTMLElement;
+const cssPara = document.querySelector('.css-output-p')! as HTMLElement;
 
 // Setup canvas for high DPI displays.
 const ctx = canvas.getContext('2d')!;
@@ -103,6 +104,8 @@ ctx.font = '13pt sans-serif';
 textarea.addEventListener('input', () => {
   renderText(canvas, textarea.value);
   renderSpans(para, textarea.value);
+  cssPara.textContent = textarea.value;
 });
 renderText(canvas, textarea.value);
 renderSpans(para, textarea.value);
+cssPara.textContent = textarea.value;
