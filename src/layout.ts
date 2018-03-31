@@ -365,3 +365,44 @@ export function layoutParagraph(
   const breakpoints = breakLines(items, lineLengths, opts);
   return positionBoxes(items, lineLengths, breakpoints);
 }
+
+/**
+ * A box which also carries around with it some associated text.
+ */
+export interface TextBox extends Box {
+  text: string;
+}
+
+export type TextInputItem = TextBox | Glue | Penalty;
+
+/**
+ * A convenience function that generates a set of input items for
+ * `layoutParagraph` or `breakLines` from a string.
+ *
+ * @param s - Text to process
+ * @param measureFn - Callback that calculates the width of a given string
+ */
+export function layoutItemsFromString(
+  s: string,
+  measureFn: (word: string) => number,
+): TextInputItem[] {
+  const items: TextInputItem[] = [];
+  const words = s.split(/\s+/).filter(w => w.length > 0);
+
+  // Here we assume that every space has the same default size. Callers who want
+  // more flexibility can use the lower-level functions.
+  const spaceWidth = measureFn(' ');
+
+  const shrink = Math.max(0, spaceWidth - 2);
+  words.forEach(w => {
+    const b: TextBox = { type: 'box', width: measureFn(w), text: w };
+    const g: Glue = { type: 'glue', width: spaceWidth, shrink, stretch: 20 };
+    items.push(b, g);
+  });
+  // Add "finishing glue" to space out final line.
+  items.push({ type: 'glue', width: 0, stretch: MAX_COST, shrink: 0 });
+  // Add forced break at end of paragraph.
+  items.push({ type: 'penalty', cost: MIN_COST, width: 0, flagged: false });
+
+  return items;
+}

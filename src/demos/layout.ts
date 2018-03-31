@@ -3,12 +3,7 @@
  * to lay out a paragraph of justified text and render it into an HTML canvas.
  */
 
-import { layoutParagraph, InputItem, Box, Glue, MAX_COST, MIN_COST } from '../layout';
-
-interface WordBox extends Box {
-  /** Index of word associated with this box. */
-  word: number;
-}
+import { layoutItemsFromString, layoutParagraph, TextBox, MAX_COST, MIN_COST } from '../layout';
 
 function renderText(c: HTMLCanvasElement, t: string) {
   const ctx = canvas.getContext('2d')!;
@@ -19,19 +14,7 @@ function renderText(c: HTMLCanvasElement, t: string) {
   const lineWidth = c.width / window.devicePixelRatio - leftMargin - rightMargin;
 
   // Generate boxes, glues and penalties from input string.
-  let items: InputItem[] = [];
-  const words = t.split(/\s+/).filter(w => w.length > 0);
-  const spaceWidth = ctx.measureText(' ').width;
-  const shrink = Math.max(0, spaceWidth - 2);
-  words.forEach((w, i) => {
-    const b: WordBox = { type: 'box', width: ctx.measureText(w).width, word: i };
-    const g: Glue = { type: 'glue', width: spaceWidth, shrink, stretch: 20 };
-    items.push(b, g);
-  });
-  // Add "finishing glue" to space out final line.
-  items.push({ type: 'glue', width: 0, stretch: MAX_COST, shrink: 0 });
-  // Add forced break at end of paragraph.
-  items.push({ type: 'penalty', cost: MIN_COST, width: 0, flagged: false });
+  const items = layoutItemsFromString(t, w => ctx.measureText(w).width);
 
   // Layout paragraph.
   const boxPositions = layoutParagraph(items, lineWidth, {
@@ -44,9 +27,9 @@ function renderText(c: HTMLCanvasElement, t: string) {
   const lineSpacing = 30;
   boxPositions.forEach(bp => {
     const yOffset = (bp.line + 1) * lineSpacing;
-    const box = items[bp.box] as WordBox;
+    const box = items[bp.box] as TextBox;
     let xOffset = leftMargin + bp.xOffset;
-    ctx.fillText(words[box.word], xOffset, yOffset);
+    ctx.fillText(box.text, xOffset, yOffset);
   });
 }
 
