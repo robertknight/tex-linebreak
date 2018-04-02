@@ -285,22 +285,26 @@ export interface PositionedBox {
 }
 
 /**
- * Compute the positions at which to draw boxes forming a paragraph given a set
- * of breakpoints.
+ * Compute adjustment ratios for lines given a set of breakpoints.
  *
- * @param items - The sequence of items that form the paragraph.
- * @param lineLengths - Length or lengths of each line.
- * @param breakpoints - Indexes within `items` of the start of each line.
+ * The adjustment ratio of a line is the proportion of each glue item's stretch
+ * (if positive) or shrink (if negative) which needs to be used in order to make
+ * the line the specified width. A value of zero indicates that every glue item
+ * is exactly its preferred width.
+ *
+ * @param items - The box, glue and penalty items being laid out
+ * @param lineLengths - Length or lengths of each line
+ * @param breakpoints - Indexes in `items` where lines are being broken
  */
-export function positionBoxes(
+export function adjustmentRatios(
   items: InputItem[],
   lineLengths: number | number[],
   breakpoints: number[],
-): PositionedBox[] {
+) {
   const lineLen = (i: number) => (Array.isArray(lineLengths) ? lineLengths[i] : lineLengths);
-  const result: PositionedBox[] = [];
+  const ratios = [];
+
   for (let b = 0; b < breakpoints.length - 1; b++) {
-    // Compute adjustment ratio for line.
     let idealWidth = lineLen(b);
     let actualWidth = 0;
     let lineShrink = 0;
@@ -324,7 +328,30 @@ export function positionBoxes(
       adjustmentRatio = (idealWidth - actualWidth) / lineShrink;
     }
 
-    // Position boxes along each line.
+    ratios.push(adjustmentRatio);
+  }
+
+  return ratios;
+}
+
+/**
+ * Compute the positions at which to draw boxes forming a paragraph given a set
+ * of breakpoints.
+ *
+ * @param items - The sequence of items that form the paragraph.
+ * @param lineLengths - Length or lengths of each line.
+ * @param breakpoints - Indexes within `items` of the start of each line.
+ */
+export function positionBoxes(
+  items: InputItem[],
+  lineLengths: number | number[],
+  breakpoints: number[],
+): PositionedBox[] {
+  const adjRatios = adjustmentRatios(items, lineLengths, breakpoints);
+  const result: PositionedBox[] = [];
+
+  for (let b = 0; b < breakpoints.length - 1; b++) {
+    const adjustmentRatio = adjRatios[b];
     let xOffset = 0;
 
     for (let p = breakpoints[b]; p < breakpoints[b + 1]; p++) {
