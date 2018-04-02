@@ -192,8 +192,6 @@ export function breakLines(
         adjustmentRatio = (idealLen - actualLen) / lineShrink;
       }
 
-      // FIXME - If there is a forced break we'll never add an item to the
-      // feasible set.
       if (adjustmentRatio < -1 || isForcedBreak(item)) {
         // Items from `a` to `b` cannot fit on one line.
         active.delete(a);
