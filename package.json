@@ -4,15 +4,23 @@
   "main": "index.js",
   "license": "MIT",
   "devDependencies": {
+    "@types/chai": "^4.1.2",
+    "@types/mocha": "^5.0.0",
+    "@types/node": "^9.6.1",
+    "chai": "^4.1.2",
+    "mocha": "^5.0.5",
     "prettier": "^1.11.1",
     "ts-loader": "^4.1.0",
+    "ts-node": "^5.0.1",
     "typescript": "^2.8.1",
     "webpack": "^4.4.1",
     "webpack-cli": "^2.0.13"
   },
   "scripts": {
     "build": "webpack",
-    "format": "prettier --write src/*.ts src/**/*.ts",
-    "watch": "webpack --watch --mode development"
+    "format": "prettier --write src/*.ts src/**/*.ts test/**/*.ts",
+    "watch": "webpack --watch --mode development",
+    "test": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha --compilers ts:ts-node/register test/**/*-test.ts",
+    "test-watch": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha --compilers ts:ts-node/register --watch --watch-extensions ts test/**/*-test.ts"
   }
 }
