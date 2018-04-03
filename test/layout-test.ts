@@ -148,6 +148,13 @@ describe('layout', () => {
       });
     });
 
+    it('uses defaults if options are omitted', () => {
+      const measure = (text: string) => text.length * 5;
+      const items = layoutItemsFromString('one fine day in the middle of the night', measure);
+      const breakpoints = breakLines(items, 100);
+      assert.deepEqual(breakpoints, [0, 9, 17, 19]);
+    });
+
     it('succeeds when min adjustment ratio is exceeded', () => {
       // Lay out input into a line with a width (5) of less than the box width
       // (10).
@@ -156,8 +163,6 @@ describe('layout', () => {
       const items: InputItem[] = [...lines, forcedBreak()];
       const breakpoints =  breakLines(items, 5, {
         maxAdjustmentRatio: 1,
-        chlPenalty: 0,
-        looseness: 0,
       });
       assert.deepEqual(breakpoints, [0, 1, 3, 5, 7, 9, 10]);
     });
@@ -184,8 +189,6 @@ describe('layout', () => {
         // existing boxes and then only after that retry with a higher threshold.
         const breakpoints = breakLines(items, lineWidth, {
           maxAdjustmentRatio: 1,
-          chlPenalty: 0,
-          looseness: 0,
         });
         assert.deepEqual(breakpoints, expectedBreakpoints);
       });

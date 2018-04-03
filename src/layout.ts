@@ -87,6 +87,12 @@ function isForcedBreak(item: InputItem) {
   return item.type === 'penalty' && item.cost <= MIN_COST;
 }
 
+const defaultOptions = {
+  maxAdjustmentRatio: 1,
+  looseness: 1,
+  chlPenalty: 0,
+};
+
 /**
  * Break a paragraph of text into justified lines.
  *
@@ -108,12 +114,13 @@ function isForcedBreak(item: InputItem) {
 export function breakLines(
   items: InputItem[],
   lineLengths: number | number[],
-  opts: Options,
+  opts: Partial<Options> = {},
 ): number[] {
   if (items.length === 0) {
     return [];
   }
 
+  const opts_ = { ...defaultOptions, ...opts };
   const lineLen = (i: number) => (Array.isArray(lineLengths) ? lineLengths[i] : lineLengths);
 
   // TBD - Enforce "Restriction 1" and "Restriction 2" from p.1156.
@@ -202,7 +209,7 @@ export function breakLines(
         active.delete(a);
         lastActive = a;
       }
-      if (adjustmentRatio >= MIN_ADJUSTMENT_RATIO && adjustmentRatio < opts.maxAdjustmentRatio) {
+      if (adjustmentRatio >= MIN_ADJUSTMENT_RATIO && adjustmentRatio < opts_.maxAdjustmentRatio) {
         // We found a feasible breakpoint. Compute a `demerits` score for it as
         // per formula on p. 1128.
         let demerits;
@@ -282,7 +289,7 @@ export function breakLines(
   if (active.size === 0) {
     throw new Error(
       `Unable to find feasible breakpoints with adjustment ratio in [${MIN_ADJUSTMENT_RATIO}, ${
-        opts.maxAdjustmentRatio
+        opts_.maxAdjustmentRatio
       }]`,
     );
   }
@@ -295,7 +302,7 @@ export function breakLines(
     }
   });
 
-  if (opts.looseness !== 0) {
+  if (opts_.looseness !== 0) {
     // TBD - Choose appropriate active node. See notes about `q` parameter in
     // the paper.
   }
@@ -429,7 +436,7 @@ export function positionBoxes(
 export function layoutParagraph(
   items: InputItem[],
   lineLengths: number | number[],
-  opts: Options,
+  opts: Partial<Options>,
 ): PositionedBox[] {
   const breakpoints = breakLines(items, lineLengths, opts);
   return positionBoxes(items, lineLengths, breakpoints);
