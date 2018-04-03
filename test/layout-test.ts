@@ -7,6 +7,7 @@ import {
   forcedBreak,
   layoutItemsFromString,
   layoutParagraph,
+  positionBoxes,
   Box,
   Glue,
   InputItem,
@@ -98,6 +99,15 @@ function chunk<T>(arr: T[], width: number) {
   return chunks;
 }
 
+function repeat<T>(arr: T[], count: number) {
+  let result = [];
+  while (count) {
+    --count;
+    result.push(...arr);
+  }
+  return result;
+}
+
 function box(w: number): Box {
   return { type: 'box', width: w };
 }
@@ -138,29 +148,94 @@ describe('layout', () => {
       });
     });
 
-    it('fails when min adjustment ratio is exceeded', () => {
-      // Lay out input into a line with a width of less than the box width.
-      let items: InputItem[] = [box(10), box(10), forcedBreak()];
-      assert.throws(() =>
-        breakLines(items, 5, {
-          maxAdjustmentRatio: 1,
-          chlPenalty: 0,
-          looseness: 0,
-        }),
-      );
+    it('succeeds when min adjustment ratio is exceeded', () => {
+      // Lay out input into a line with a width (5) of less than the box width
+      // (10).
+      // We'll give up and make lines which exceed the specified length.
+      const lines = repeat([box(10), glue(5,1,1)], 5);
+      const items: InputItem[] = [...lines, forcedBreak()];
+      const breakpoints =  breakLines(items, 5, {
+        maxAdjustmentRatio: 1,
+        chlPenalty: 0,
+        looseness: 0,
+      });
+      assert.deepEqual(breakpoints, [0, 1, 3, 5, 7, 9, 10]);
     });
 
-    it('fails when max adjustment ratio is exceeded', () => {
-      // Lay out input into a line which would need to stretch more than
-      // `glue.width + maxAdjustmentRatio * glue.stretch` in order to fit.
-      let items: InputItem[] = [box(10), glue(10, 10, 10), box(10), forcedBreak()];
-      assert.throws(() =>
-        breakLines(items, 1000, {
+    // TODO - Handle case like above but where glue does not allow shrinking or
+    // stretching.
+
+    [{
+      items: [box(10), glue(10, 10, 10), box(10), forcedBreak()],
+      lineWidth: 1000,
+      expectedBreakpoints: [0, 3],
+    },{
+      items: [box(10), glue(10, 5, 5), box(100), forcedBreak()],
+      lineWidth: 50,
+      expectedBreakpoints: [0, 3],
+    }].forEach(({items, lineWidth, expectedBreakpoints}, i) => {
+      it(`succeeds when max adjustment ratio is exceeded (${i+1})`, () => {
+        // Lay out input into a line which would need to stretch more than
+        // `glue.width + maxAdjustmentRatio * glue.stretch` in order to fit.
+        //
+        // Currently the algorithm will simply retry with a higher threshold. If
+        // we followed TeX's solution (see Knuth-Plass p.1162) then we would first
+        // retry with the same threshold after applying hyphenation to break
+        // existing boxes and then only after that retry with a higher threshold.
+        const breakpoints = breakLines(items, lineWidth, {
           maxAdjustmentRatio: 1,
           chlPenalty: 0,
           looseness: 0,
-        }),
-      );
+        });
+        assert.deepEqual(breakpoints, expectedBreakpoints);
+      });
+    });
+
+    // TODO - Handle case like above but where glue does not allow shrinking or
+    // stretching.
+  });
+
+  describe('positionBoxes', () => {
+    it('lays out boxes with justified margins', () => {
+      const items = [box(10), glue(10, 5, 5), box(10),
+                     glue(10, 5, 5), box(10), glue(10, 5, 5),
+                     forcedBreak()];
+      const lineWidth = 35;
+      const breakpoints = [0, 3, 6];
+
+      const boxes = positionBoxes(items, lineWidth, breakpoints);
+
+      assert.deepEqual(boxes, [{
+        box: 0,
+        line: 0,
+        xOffset: 0,
+      },{
+        box: 2,
+        line: 0,
+        xOffset: 25,
+      },{
+        box: 4,
+        line: 1,
+        xOffset: 0,
+      }]);
+    });
+
+    it('does not let gap between boxes shrink below `glue.width - glue.shrink`', () => {
+      const items = [box(10), glue(10, 5, 5), box(100), forcedBreak()];
+      const lineWidth = 50;
+      const breakpoints = [0, 3];
+
+      const boxes = positionBoxes(items, lineWidth, breakpoints);
+
+      assert.deepEqual(boxes, [{
+        box: 0,
+        line: 0,
+        xOffset: 0,
+      },{
+        box: 2,
+        line: 0,
+        xOffset: 15,
+      }]);
     });
   });
 

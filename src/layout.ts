@@ -81,6 +81,8 @@ export const MIN_COST = -1000;
  */
 export const MAX_COST = 1000;
 
+const MIN_ADJUSTMENT_RATIO = -1;
+
 function isForcedBreak(item: InputItem) {
   return item.type === 'penalty' && item.cost <= MIN_COST;
 }
@@ -174,6 +176,10 @@ export function breakLines(
     }
 
     // Update the set of active nodes.
+    let maxAdjustmentRatio = -Infinity;
+    let minAdjustmentRatio = Infinity;
+    let lastActive: Node|null = null;
+
     const feasible: Node[] = [];
     active.forEach(a => {
       // Compute adjustment ratio from `a` to `b`.
@@ -188,12 +194,15 @@ export function breakLines(
       } else {
         adjustmentRatio = (idealLen - actualLen) / lineShrink;
       }
+      maxAdjustmentRatio = Math.max(adjustmentRatio, maxAdjustmentRatio);
+      minAdjustmentRatio = Math.min(adjustmentRatio, minAdjustmentRatio);
 
-      if (adjustmentRatio < -1 || isForcedBreak(item)) {
+      if (adjustmentRatio < MIN_ADJUSTMENT_RATIO || isForcedBreak(item)) {
         // Items from `a` to `b` cannot fit on one line.
         active.delete(a);
+        lastActive = a;
       }
-      if (adjustmentRatio >= -1 && adjustmentRatio < opts.maxAdjustmentRatio) {
+      if (adjustmentRatio >= MIN_ADJUSTMENT_RATIO && adjustmentRatio < opts.maxAdjustmentRatio) {
         // We found a feasible breakpoint. Compute a `demerits` score for it as
         // per formula on p. 1128.
         let demerits;
@@ -237,10 +246,30 @@ export function breakLines(
       active.add(bestNode);
     }
 
-    // If the active set is now empty then we won't find any more feasible
-    // breakpoints. Bail out here and handle the situation after the loop.
+    // Handle situation where there is no way to break the paragraph without
+    // shrinking or stretching a line beyond [-1, opts.maxAdjustmentRatio].
     if (active.size === 0) {
-      break;
+      if (maxAdjustmentRatio < MIN_ADJUSTMENT_RATIO) {
+        // Too much shrinking required. Here we give up and create a breakpoint
+        // at the current position.
+        active.add({
+          index: b,
+          line: lastActive!.line + 1,
+          fitness: 1,
+          totalWidth: sumWidth,
+          totalShrink: sumShrink,
+          totalStretch: sumStretch,
+          totalDemerits: lastActive!.totalDemerits + 1000,
+          next: null,
+          prev: lastActive!,
+        });
+      } else {
+        // Too much stretching required.
+        return breakLines(items, lineLengths, {
+          ...opts,
+          maxAdjustmentRatio: minAdjustmentRatio + 0.5,
+        });
+      }
     }
 
     if (item.type === 'glue') {
@@ -251,10 +280,8 @@ export function breakLines(
   }
 
   if (active.size === 0) {
-    // We found a situation where no lines with an adjustment ratio in [-1,
-    // maxAdjustmentRatio] could be found between two points.
     throw new Error(
-      `Unable to find feasible breakpoints with adjustment ratio in [-1, ${
+      `Unable to find feasible breakpoints with adjustment ratio in [${MIN_ADJUSTMENT_RATIO}, ${
         opts.maxAdjustmentRatio
       }]`,
     );
@@ -362,7 +389,9 @@ export function positionBoxes(
   const result: PositionedBox[] = [];
 
   for (let b = 0; b < breakpoints.length - 1; b++) {
-    const adjustmentRatio = adjRatios[b];
+    // Limit the amount of shrinking of lines to 1x `glue.shrink` for each glue
+    // item in a line.
+    const adjustmentRatio = Math.max(adjRatios[b], MIN_ADJUSTMENT_RATIO);
     let xOffset = 0;
 
     for (let p = breakpoints[b]; p < breakpoints[b + 1]; p++) {
