@@ -1,7 +1,7 @@
 {
-  "name": "reflow",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "tex-linebreak",
+  "version": "0.1.0",
+  "main": "dist/src/index.js",
   "license": "MIT",
   "devDependencies": {
     "@types/chai": "^4.1.2",
@@ -16,11 +16,13 @@
     "webpack": "^4.4.1",
     "webpack-cli": "^2.0.13"
   },
+  "files": ["dist/"],
   "scripts": {
-    "build": "webpack",
+    "build": "tsc",
+    "build-demos": "webpack",
     "format": "prettier --write src/*.ts src/**/*.ts test/**/*.ts",
     "watch": "webpack --watch --mode development",
-    "test": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha --compilers ts:ts-node/register test/**/*-test.ts",
-    "test-watch": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha --compilers ts:ts-node/register --watch --watch-extensions ts test/**/*-test.ts"
+    "test": "mocha --compilers ts:ts-node/register test/**/*-test.ts",
+    "test-watch": "mocha --compilers ts:ts-node/register --watch --watch-extensions ts test/**/*-test.ts"
   }
 }

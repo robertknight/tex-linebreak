@@ -1,35 +1,65 @@
-# reflow
+# tex-linebreak
 
-reflow is a web viewer for PDFs that makes it easier to read content on small
-screens. It adapts the layout of pages to fit the device while preserving as
-much of the original presentation as possible.
+_tex-linebreak_ is a JavaScript library for laying out justified text as you
+would find in a newspaper, book or technical paper.
 
-The core layout library can also be used to perform similar adaptation of
-content for other software.
+It implements the Knuth-Plass line-breaking algorithm, as used by TeX. Compared
+to standard methods of justifying text (eg.  `text-align: justify` in CSS) this
+method produces more optimal spacing with fewer lines having spacing between
+words that is too tight or too loose, both of which are difficult to read.
 
-## Implementation
+_tex-linebreak_ is a pure JS library with no dependencies on a particular JS
+environment (browser, Node) or render target (`<canvas>`, HTML elements, PDF).
 
-PDF documents consist of a set of pages, each of which consists of a set of
-drawing commands (eg. draw a string at a specified position with a particular
-font). This structure guarantees consistent presentation across different
-viewers. However it means that the content formatted for printed pages or
-laptop-sized screens cannot easily be adapted for smaller displays.
+## Usage
 
-reflow adapts the document by processing the drawing commands for each page
-to build up an understanding of the page's layout as a set of regions,
-and then re-laying out the regions to fit the display.
+First, add the _tex-linebreak_ package to your dependencies.
 
-### Layout process
+```sh
+npm install tex-linebreak
+```
 
-When presenting a page, reflow performs the following steps to produce output
-adapted for the size of display:
+Then use the APIs to lay out and render text:
 
-1. Get page drawing commands from document
-2. Perform layout analysis to split content into regions
-3. Classify regions as text (reflowable) or other (not reflowable)
-4. Determine reading order of regions
-5. Lay out boxes for regions to fit screen
-6. Reflow or scale region contents to fit box.
-   - For text regions, reflow using Knuth-Plass or similar
-   - For other regions, scale to fit display. Some affordance can
-     be provided in the UI to zoom.
+```js
+import { layoutItemsFromString, breakLines, positionBoxes } from 'tex-linebreak';
+
+// Convert your text to a set of "box", "glue" and "penalty" items used by the
+// line-breaking process.
+//
+// "Box" items are things (typically words) to typeset.
+// "Glue" items are spaces that can stretch or shrink or be a breakpoint.
+// "Penalty" items are possible breakpoints (hyphens, end of a paragraph etc.).
+//
+// `layoutItemsFromString` is a helper that takes a string and a function to
+// measure the width of a piece of that string and returns a suitable set of
+// items.
+const measureText = text => text.length * 5;
+const items = layoutItemsFromString(yourText, measureText);
+
+// Find where to insert line-breaks in order to optimally lay out the text.
+const lineWidth = 200;
+const breakpoints = breakLines(items, lineWidth)
+
+// Compute the (xOffset, line number) at which to draw each box item.
+const boxes = positionBoxes(items, lineWidth, breakpoints);
+
+boxes.forEach(box => {
+  const item = items[box.box];
+
+  // Add code to draw `item.text` at `(box.xOffset, box.line)` to whatever output
+  // you want, eg. `<canvas>`, HTML elements with spacing created using CSS,
+  // WebGL, ...
+});
+```
+
+For working code showing different ways to use this library, see [the
+demos](src/demos/).
+
+## API
+
+See [src/layout.ts](src/layout.ts) for API documentation.
+
+## References
+
+[1] D. E. Knuth and M. F. Plass, “[Breaking paragraphs into lines](http://www.eprg.org/G53DOC/pdfs/knuth-plass-breaking.pdf),” Softw. Pract. Exp., vol. 11, no. 11, pp. 1119–1184, Nov. 1981.
