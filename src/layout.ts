@@ -1,7 +1,7 @@
 /**
  * An object (eg. a word) to be typeset.
  */
-export type Box = {
+export interface Box {
   type: 'box';
   width: number;
 };
@@ -13,7 +13,7 @@ export type Box = {
  * `Glue` items are also candidates for breakpoints if they immediately follow a
  * `Box`.
  */
-export type Glue = {
+export interface Glue {
   type: 'glue';
   width: number;
   /** Maximum amount by which this space can grow. */
@@ -25,7 +25,7 @@ export type Glue = {
 /**
  * An explicit candidate position for breaking a line.
  */
-export type Penalty = {
+export interface Penalty {
   type: 'penalty';
   width: number;
   /**
@@ -48,7 +48,7 @@ export type InputItem = Box | Penalty | Glue;
 /**
  * Parameters for the layout process.
  */
-export type Options = {
+export interface Options {
   /**
    * A factor indicating the maximum amount by which items in a line can be
    * spaced out by expanding `Glue` items.
