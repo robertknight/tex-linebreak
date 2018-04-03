@@ -92,6 +92,9 @@ function isForcedBreak(item: InputItem) {
  * `positionBoxes` can be used to generate the X offsets and line numbers of
  * each box using the resulting breakpoints.
  *
+ * May throw an `Error` if valid breakpoints cannot be found given the specified
+ * adjustment ratio thresholds.
+ *
  * The implementation uses the "TeX algorithm" from [1].
  *
  * [1] D. E. Knuth and M. F. Plass, “Breaking paragraphs into lines,” Softw.
@@ -170,12 +173,6 @@ export function breakLines(
       continue;
     }
 
-    // TODO - Provide some way to ensure that layout succeeds if it is not
-    // possible to lay the paragraph out with the specified adjustment options.
-    if (active.size === 0) {
-      throw new Error(`Empty active node set after item ${b}`);
-    }
-
     // Update the set of active nodes.
     const feasible: Node[] = [];
     active.forEach(a => {
@@ -240,11 +237,27 @@ export function breakLines(
       active.add(bestNode);
     }
 
+    // If the active set is now empty then we won't find any more feasible
+    // breakpoints. Bail out here and handle the situation after the loop.
+    if (active.size === 0) {
+      break;
+    }
+
     if (item.type === 'glue') {
       sumWidth += item.width;
       sumStretch += item.stretch;
       sumShrink += item.shrink;
     }
+  }
+
+  if (active.size === 0) {
+    // We found a situation where no lines with an adjustment ratio in [-1,
+    // maxAdjustmentRatio] could be found between two points.
+    throw new Error(
+      `Unable to find feasible breakpoints with adjustment ratio in [-1, ${
+        opts.maxAdjustmentRatio
+      }]`,
+    );
   }
 
   // Choose active node with fewest total demerits as the last breakpoint.
@@ -403,6 +416,13 @@ export interface TextBox extends Box {
 export type TextInputItem = TextBox | Glue | Penalty;
 
 /**
+ * Return a `Penalty` item which forces a line-break.
+ */
+export function forcedBreak(): Penalty {
+  return { type: 'penalty', cost: MIN_COST, width: 0, flagged: false };
+}
+
+/**
  * A convenience function that generates a set of input items for
  * `layoutParagraph` or `breakLines` from a string.
  *
@@ -428,8 +448,7 @@ export function layoutItemsFromString(
   });
   // Add "finishing glue" to space out final line.
   items.push({ type: 'glue', width: 0, stretch: MAX_COST, shrink: 0 });
-  // Add forced break at end of paragraph.
-  items.push({ type: 'penalty', cost: MIN_COST, width: 0, flagged: false });
+  items.push(forcedBreak());
 
   return items;
 }

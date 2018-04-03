@@ -4,8 +4,12 @@ import { readFileSync, writeFileSync } from 'fs';
 import {
   adjustmentRatios,
   breakLines,
+  forcedBreak,
   layoutItemsFromString,
   layoutParagraph,
+  Box,
+  Glue,
+  InputItem,
   TextInputItem,
 } from '../src/layout';
 
@@ -49,11 +53,11 @@ interface LayoutFixture {
 function readLayoutFixture(path: string): LayoutFixture {
   const defaultSettings = {
     charWidth: 5,
-    maxAdjustmentRatio: 5,
+    maxAdjustmentRatio: 1,
     chlPenalty: 10,
   };
 
-  const content = readFileSync(path, { encoding: 'utf8' });
+  const content = readFileSync(path, { encoding: 'utf8' }).trim();
   const sections = content.split('\n\n');
   const input = sections[0];
   const outputs = [];
@@ -94,6 +98,14 @@ function chunk<T>(arr: T[], width: number) {
   return chunks;
 }
 
+function box(w: number): Box {
+  return { type: 'box', width: w };
+}
+
+function glue(w: number, shrink: number, stretch: number): Glue {
+  return { type: 'glue', width: w, shrink, stretch };
+}
+
 describe('layout', () => {
   describe('breakLines', () => {
     it('generates expected layout', () => {
@@ -124,6 +136,31 @@ describe('layout', () => {
           assert.isAtMost(ar, layoutOptions.maxAdjustmentRatio);
         });
       });
+    });
+
+    it('fails when min adjustment ratio is exceeded', () => {
+      // Lay out input into a line with a width of less than the box width.
+      let items: InputItem[] = [box(10), box(10), forcedBreak()];
+      assert.throws(() =>
+        breakLines(items, 5, {
+          maxAdjustmentRatio: 1,
+          chlPenalty: 0,
+          looseness: 0,
+        }),
+      );
+    });
+
+    it('fails when max adjustment ratio is exceeded', () => {
+      // Lay out input into a line which would need to stretch more than
+      // `glue.width + maxAdjustmentRatio * glue.stretch` in order to fit.
+      let items: InputItem[] = [box(10), glue(10, 10, 10), box(10), forcedBreak()];
+      assert.throws(() =>
+        breakLines(items, 1000, {
+          maxAdjustmentRatio: 1,
+          chlPenalty: 0,
+          looseness: 0,
+        }),
+      );
     });
   });
 
