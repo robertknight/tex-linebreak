@@ -160,6 +160,8 @@ export function breakLines(
   // Sum of `shrink` of glue items up to current item.
   let sumShrink = 0;
 
+  let minAdjustmentRatioAboveThreshold = Infinity;
+
   for (let b = 0; b < items.length; b++) {
     const item = items[b];
 
@@ -183,8 +185,6 @@ export function breakLines(
     }
 
     // Update the set of active nodes.
-    let maxAdjustmentRatio = -Infinity;
-    let minAdjustmentRatio = Infinity;
     let lastActive: Node | null = null;
 
     const feasible: Node[] = [];
@@ -201,15 +201,22 @@ export function breakLines(
       } else {
         adjustmentRatio = (idealLen - actualLen) / lineShrink;
       }
-      maxAdjustmentRatio = Math.max(adjustmentRatio, maxAdjustmentRatio);
-      minAdjustmentRatio = Math.min(adjustmentRatio, minAdjustmentRatio);
+      if (adjustmentRatio > opts_.maxAdjustmentRatio) {
+        // In case we need to try again later with a higher
+        // `maxAdjustmentRatio`, track the minimum value needed to produce
+        // different output.
+        minAdjustmentRatioAboveThreshold = Math.min(
+          adjustmentRatio,
+          minAdjustmentRatioAboveThreshold,
+        );
+      }
 
       if (adjustmentRatio < MIN_ADJUSTMENT_RATIO || isForcedBreak(item)) {
         // Items from `a` to `b` cannot fit on one line.
         active.delete(a);
         lastActive = a;
       }
-      if (adjustmentRatio >= MIN_ADJUSTMENT_RATIO && adjustmentRatio < opts_.maxAdjustmentRatio) {
+      if (adjustmentRatio >= MIN_ADJUSTMENT_RATIO && adjustmentRatio <= opts_.maxAdjustmentRatio) {
         // We found a feasible breakpoint. Compute a `demerits` score for it as
         // per formula on p. 1128.
         let demerits;
@@ -276,7 +283,14 @@ export function breakLines(
     // Handle situation where there is no way to break the paragraph without
     // shrinking or stretching a line beyond [-1, opts.maxAdjustmentRatio].
     if (active.size === 0) {
-      if (maxAdjustmentRatio < MIN_ADJUSTMENT_RATIO) {
+      if (isFinite(minAdjustmentRatioAboveThreshold)) {
+        // Too much stretching was required for an earlier ignored breakpoint.
+        // Try again with a higher threshold.
+        return breakLines(items, lineLengths, {
+          ...opts,
+          maxAdjustmentRatio: minAdjustmentRatioAboveThreshold,
+        });
+      } else {
         // Too much shrinking required. Here we give up and create a breakpoint
         // at the current position.
         active.add({
@@ -288,12 +302,6 @@ export function breakLines(
           totalStretch: sumStretch,
           totalDemerits: lastActive!.totalDemerits + 1000,
           prev: lastActive!,
-        });
-      } else {
-        // Too much stretching required.
-        return breakLines(items, lineLengths, {
-          ...opts,
-          maxAdjustmentRatio: minAdjustmentRatio + 0.5,
         });
       }
     }
