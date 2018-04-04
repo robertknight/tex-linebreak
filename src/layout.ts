@@ -58,8 +58,6 @@ export interface Options {
    */
   maxAdjustmentRatio: number;
 
-  looseness: number;
-
   /**
    * Penalty for consecutive hyphenated lines.
    */
@@ -93,7 +91,6 @@ function isForcedBreak(item: InputItem) {
 
 const defaultOptions: Options = {
   maxAdjustmentRatio: 1,
-  looseness: 1,
   doubleHyphenPenalty: 0,
   adjacentLooseTightPenalty: 0,
 };
@@ -323,11 +320,6 @@ export function breakLines(
       bestNode = a;
     }
   });
-
-  if (opts_.looseness !== 0) {
-    // TBD - Choose appropriate active node. See notes about `q` parameter in
-    // the paper.
-  }
 
   // Follow the chain backwards from the chosen node to get the sequence of
   // chosen breakpoints.

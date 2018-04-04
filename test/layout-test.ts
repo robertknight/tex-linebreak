@@ -24,7 +24,6 @@ interface LayoutFixture {
     /** Line-breaking options. */
     layoutOptions: {
       maxAdjustmentRatio: number;
-      looseness: number;
       chlPenalty: number;
       charWidth: number;
       lineWidths: number | number[];
