@@ -442,7 +442,7 @@ export function positionBoxes(
 export function layoutParagraph(
   items: InputItem[],
   lineLengths: number | number[],
-  opts: Partial<Options>,
+  opts?: Partial<Options>,
 ): PositionedBox[] {
   const breakpoints = breakLines(items, lineLengths, opts);
   return positionBoxes(items, lineLengths, breakpoints);

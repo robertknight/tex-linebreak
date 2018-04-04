@@ -20,11 +20,7 @@ function renderText(c: HTMLCanvasElement, t: string) {
   const items = layoutItemsFromString(t, w => ctx.measureText(w).width);
 
   // Layout paragraph.
-  const boxPositions = layoutParagraph(items, lineWidth, {
-    maxAdjustmentRatio: 1,
-    looseness: 0,
-    chlPenalty: 0,
-  });
+  const boxPositions = layoutParagraph(items, lineWidth);
 
   // Render each line.
   const lineSpacing = 30;
@@ -50,11 +46,7 @@ function renderSpans(el: HTMLElement, t: string) {
 
   // Layout text.
   const items = layoutItemsFromString(t, w => ctx.measureText(w).width);
-  const boxPositions = layoutParagraph(items, lineWidth, {
-    maxAdjustmentRatio: 1,
-    looseness: 0,
-    chlPenalty: 0,
-  });
+  const boxPositions = layoutParagraph(items, lineWidth);
 
   // Generate `<div>` and `<span>` elements.
   const addLine = () => {
