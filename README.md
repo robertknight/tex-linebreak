@@ -8,8 +8,8 @@ to standard methods of justifying text (eg.  `text-align: justify` in CSS) this
 method produces more optimal spacing with fewer lines having spacing between
 words that is too tight or too loose, both of which are difficult to read.
 
-_tex-linebreak_ is a pure JS library with no dependencies on a particular JS
-environment (browser, Node) or render target (`<canvas>`, HTML elements, PDF).
+_tex-linebreak_ has no dependencies on a particular JS environment (browser,
+Node) or render target (`<canvas>`, HTML elements, PDF).
 
 <table>
   <tr>
