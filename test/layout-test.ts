@@ -11,6 +11,8 @@ import {
   Box,
   Glue,
   InputItem,
+  Penalty,
+  TextBox,
   TextInputItem,
 } from '../src/layout';
 
@@ -108,6 +110,43 @@ function repeat<T>(arr: T[], count: number) {
   return result;
 }
 
+function itemsFromString(s: string, charWidth: number, glueStretch: number): TextInputItem[] {
+  const items = s.split(/\b/).map(substr => {
+    const width = substr.length * charWidth;
+    if (substr === ' ') {
+      return { type: 'glue', width, shrink: 2, stretch: glueStretch } as Glue;
+    } else if (substr === '-') {
+      return { type: 'penalty', width, flagged: true, cost: 5 } as Penalty;
+    } else {
+      return { type: 'box', width, text: substr } as TextBox;
+    }
+  });
+  items.push({ type: 'glue', width: 0, shrink: 0, stretch: 1000 });
+  items.push(forcedBreak());
+  return items;
+}
+
+function itemString(item: TextInputItem) {
+  switch (item.type) {
+    case 'box':
+      return item.text;
+    case 'glue':
+      return ' ';
+    case 'penalty':
+      return item.flagged ? '-' : '';
+  }
+}
+
+function lineStrings(items: TextInputItem[], breakpoints: number[]): string[] {
+  const pieces = items.map(itemString);
+  return chunk(breakpoints, 2).map(([a, b]) =>
+    pieces
+      .slice(a, b)
+      .join('')
+      .trim(),
+  );
+}
+
 function box(w: number): Box {
   return { type: 'box', width: w };
 }
@@ -196,6 +235,46 @@ describe('layout', () => {
 
     // TODO - Handle case like above but where glue does not allow shrinking or
     // stretching.
+
+    it('applies a penalty for consecutive lines ending with a hyphen', () => {
+      const text = 'one two long-word one long-word';
+      const charWidth = 5;
+      const glueStretch = 60;
+      const items = itemsFromString(text, charWidth, glueStretch);
+      const lineWidth = 13 * charWidth;
+
+      // Break lines without a double-hyphen penalty.
+      let breakpoints = breakLines(items, lineWidth);
+      let lines = lineStrings(items, breakpoints);
+      assert.deepEqual(
+        lines,
+        [
+          // FIXME - The hyphen should appear at the end of the line, not the
+          // start.
+          'one two long',
+          '-word one long',
+          '-word',
+        ],
+        'did not break as expected without penalty',
+      );
+
+      // Break lines with a double-hyphen penalty.
+      breakpoints = breakLines(items, lineWidth, {
+        doubleHyphenPenalty: 50,
+      });
+      lines = lineStrings(items, breakpoints);
+      assert.deepEqual(
+        lines,
+        [
+          // FIXME - The hyphen should appear at the end of the line, not the
+          // start.
+          'one two long',
+          '-word one',
+          'long-word',
+        ],
+        'did not break as expected with penalty',
+      );
+    });
   });
 
   describe('positionBoxes', () => {

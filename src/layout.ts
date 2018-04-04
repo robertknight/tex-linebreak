@@ -62,10 +62,9 @@ export interface Options {
 
   /**
    * Penalty for consecutive hyphenated lines.
-   * TODO - Hyphenation is not yet implemented.
    */
-  chlPenalty: number;
-};
+  doubleHyphenPenalty: number;
+}
 
 /**
  * Minimum cost for a breakpoint.
@@ -90,7 +89,7 @@ function isForcedBreak(item: InputItem) {
 const defaultOptions = {
   maxAdjustmentRatio: 1,
   looseness: 1,
-  chlPenalty: 0,
+  doubleHyphenPenalty: 0,
 };
 
 /**
@@ -214,17 +213,24 @@ export function breakLines(
         // per formula on p. 1128.
         let demerits;
         const badness = 100 * Math.abs(adjustmentRatio) ** 3;
-        // TBD - Penalty for consecutive hyphenated lines.
-        const chlPenalty = 0;
         const penalty = item.type === 'penalty' ? item.cost : 0;
 
         if (penalty >= 0) {
-          demerits = (1 + badness + penalty) ** 2 + chlPenalty;
+          demerits = (1 + badness + penalty) ** 2;
         } else if (penalty > MIN_COST) {
-          demerits = (1 + badness) ** 2 - penalty ** 2 + chlPenalty;
+          demerits = (1 + badness) ** 2 - penalty ** 2;
         } else {
-          demerits = (1 + badness) ** 2 + chlPenalty;
+          demerits = (1 + badness) ** 2;
         }
+
+        let doubleHyphenPenalty = 0;
+        const prevItem = items[a.index];
+        if (item.type === 'penalty' && prevItem.type === 'penalty') {
+          if (item.flagged && prevItem.flagged) {
+            doubleHyphenPenalty = opts_.doubleHyphenPenalty;
+          }
+        }
+        demerits += doubleHyphenPenalty;
 
         const node = {
           index: b,
