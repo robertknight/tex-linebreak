@@ -11,6 +11,27 @@ words that is too tight or too loose, both of which are difficult to read.
 _tex-linebreak_ is a pure JS library with no dependencies on a particular JS
 environment (browser, Node) or render target (`<canvas>`, HTML elements, PDF).
 
+<table>
+  <tr>
+    <td>CSS `text-align: justify` (Firefox 61)</td>
+    <td>_tex-linebreak_ output rendered</td>
+  </tr>
+  <tr>
+    <td><img width="400" src="images/css-text-align-output.png"></td>
+    <td><img width="400" src="images/tex-linebreak-output.png"></td>
+  </tr>
+  <tr>
+    <td>Text justified using the browser's `text-align` option
+        can have a large amount of inter-word spacing in places.
+        This depends on the browser's implementation, but it affects
+        Safari, Firefox and Chrome to varying degrees.</td>
+    <td>The TeX algorithm in contrast minimizes the amount of
+        stretching/shrinking of spaces required over the whole paragraph,
+        producing fewer large gaps and making the output more comfortable
+        to read.</td>
+  </tr>
+</table>
+
 ## Usage
 
 First, add the _tex-linebreak_ package to your dependencies.
