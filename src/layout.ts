@@ -64,6 +64,11 @@ export interface Options {
    * Penalty for consecutive hyphenated lines.
    */
   doubleHyphenPenalty: number;
+
+  /**
+   * Penalty for significant differences in the tightness of adjacent lines.
+   */
+  adjacentLooseTightPenalty: number;
 }
 
 /**
@@ -86,10 +91,11 @@ function isForcedBreak(item: InputItem) {
   return item.type === 'penalty' && item.cost <= MIN_COST;
 }
 
-const defaultOptions = {
+const defaultOptions: Options = {
   maxAdjustmentRatio: 1,
   looseness: 1,
   doubleHyphenPenalty: 0,
+  adjacentLooseTightPenalty: 0,
 };
 
 /**
@@ -133,23 +139,21 @@ export function breakLines(
     totalShrink: number; // Sum of `shrink` up to this node.
     totalDemerits: number; // Sum of line scores up to this node.
     prev: null | Node;
-    next: null | Node; // TBD - Do we need this field?
   };
 
-  // TBD - p.1159 describes `active` as a linked-list sorted by line number.
   const active = new Set<Node>();
 
   // Add initial active node for beginning of paragraph.
   active.add({
     index: 0,
     line: 0,
-    fitness: 1,
+    // Fitness is ignored for this node.
+    fitness: 0,
     totalWidth: 0,
     totalStretch: 0,
     totalShrink: 0,
     totalDemerits: 0,
     prev: null,
-    next: null,
   });
 
   // Sum of `width` of items up to current item.
@@ -232,16 +236,29 @@ export function breakLines(
         }
         demerits += doubleHyphenPenalty;
 
+        // Fitness classes are defined on p. 1155
+        let fitness;
+        if (adjustmentRatio < -0.5) {
+          fitness = 0;
+        } else if (adjustmentRatio < 0.5) {
+          fitness = 1;
+        } else if (adjustmentRatio < 1) {
+          fitness = 2;
+        } else {
+          fitness = 3;
+        }
+        if (a.index > 0 && Math.abs(fitness - a.fitness) > 1) {
+          demerits += opts_.adjacentLooseTightPenalty;
+        }
+
         const node = {
           index: b,
           line: a.line + 1,
-          // TBD - Implement fitness classes.
-          fitness: 1,
+          fitness,
           totalWidth: sumWidth,
           totalShrink: sumShrink,
           totalStretch: sumStretch,
           totalDemerits: a.totalDemerits + demerits,
-          next: null,
           prev: a,
         };
         feasible.push(node);
@@ -273,7 +290,6 @@ export function breakLines(
           totalShrink: sumShrink,
           totalStretch: sumStretch,
           totalDemerits: lastActive!.totalDemerits + 1000,
-          next: null,
           prev: lastActive!,
         });
       } else {

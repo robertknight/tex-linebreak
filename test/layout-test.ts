@@ -111,9 +111,9 @@ function repeat<T>(arr: T[], count: number) {
 }
 
 function itemsFromString(s: string, charWidth: number, glueStretch: number): TextInputItem[] {
-  const items = s.split(/\b/).map(substr => {
+  const items = s.split(/(\s+|-)/).map(substr => {
     const width = substr.length * charWidth;
-    if (substr === ' ') {
+    if (substr.match(/^\s+$/)) {
       return { type: 'glue', width, shrink: 2, stretch: glueStretch } as Glue;
     } else if (substr === '-') {
       return { type: 'penalty', width, flagged: true, cost: 5 } as Penalty;
@@ -277,6 +277,33 @@ describe('layout', () => {
         ],
         'did not break as expected with penalty',
       );
+    });
+
+    it('applies a penalty when adjacent lines have different tightness', () => {
+      // Getting this test case to produce different output with and without the
+      // penalty applied required a great deal of hand-tweaking. It would be
+      // preferable to use a simpler test case.
+
+      const text =
+        'Accurate 3D hand pose estimation plays an important role in Human Machine Interaction (HMI). In the reality of HMI, joints in fingers stretching out, especially corresponding fingertips, are much more important than other joints. We propose a novel method to refine stretching_out finger joint locations after obtaining rough hand pose estimation. It first detects which fingers are stretching out, then neighbor pixels of certain joint vote for its new location based on random forests. The algorithm is tested on two public datasets: MSRA15 and ICVL. After the refinement stage of stretching_out fingers, errors of predicted HMI finger joint locations are significantly reduced. Mean error of all fingertips reduces around 5mm (relatively more than 20%). Stretching_out fingertip locations are even more precise, which in MSRA15 reduces 10.51mm (relatively 41.4%).';
+      const charWidth = 5;
+      const glueStretch = 10;
+      const items = itemsFromString(text, charWidth, glueStretch);
+      const lineWidth = 30 * charWidth;
+
+      // Break lines without contrasting tightess penalty.
+      let breakpointsA = breakLines(items, lineWidth, {
+        adjacentLooseTightPenalty: 0,
+      });
+      let linesA = lineStrings(items, breakpointsA);
+
+      // Break lines with constrasting tightness penalty.
+      let breakpointsB = breakLines(items, lineWidth, {
+        adjacentLooseTightPenalty: 10000,
+      });
+      let linesB = lineStrings(items, breakpointsB);
+
+      assert.notDeepEqual(linesA, linesB);
     });
   });
 
