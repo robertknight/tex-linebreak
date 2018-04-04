@@ -4,7 +4,7 @@
 export interface Box {
   type: 'box';
   width: number;
-};
+}
 
 /**
  * A space between `Box` items with a preferred width and some
@@ -20,7 +20,7 @@ export interface Glue {
   stretch: number;
   /** Maximum amount by which this space can shrink. */
   shrink: number;
-};
+}
 
 /**
  * An explicit candidate position for breaking a line.
@@ -41,7 +41,7 @@ export interface Penalty {
    * `Penalty` items.
    */
   flagged: boolean;
-};
+}
 
 export type InputItem = Box | Penalty | Glue;
 
@@ -184,7 +184,7 @@ export function breakLines(
     // Update the set of active nodes.
     let maxAdjustmentRatio = -Infinity;
     let minAdjustmentRatio = Infinity;
-    let lastActive: Node|null = null;
+    let lastActive: Node | null = null;
 
     const feasible: Node[] = [];
     active.forEach(a => {

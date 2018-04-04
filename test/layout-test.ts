@@ -198,9 +198,9 @@ describe('layout', () => {
       // Lay out input into a line with a width (5) of less than the box width
       // (10).
       // We'll give up and make lines which exceed the specified length.
-      const lines = repeat([box(10), glue(5,1,1)], 5);
+      const lines = repeat([box(10), glue(5, 1, 1)], 5);
       const items: InputItem[] = [...lines, forcedBreak()];
-      const breakpoints =  breakLines(items, 5, {
+      const breakpoints = breakLines(items, 5, {
         maxAdjustmentRatio: 1,
       });
       assert.deepEqual(breakpoints, [0, 1, 3, 5, 7, 9, 10]);
@@ -209,16 +209,19 @@ describe('layout', () => {
     // TODO - Handle case like above but where glue does not allow shrinking or
     // stretching.
 
-    [{
-      items: [box(10), glue(10, 10, 10), box(10), forcedBreak()],
-      lineWidth: 1000,
-      expectedBreakpoints: [0, 3],
-    },{
-      items: [box(10), glue(10, 5, 5), box(100), forcedBreak()],
-      lineWidth: 50,
-      expectedBreakpoints: [0, 3],
-    }].forEach(({items, lineWidth, expectedBreakpoints}, i) => {
-      it(`succeeds when max adjustment ratio is exceeded (${i+1})`, () => {
+    [
+      {
+        items: [box(10), glue(10, 10, 10), box(10), forcedBreak()],
+        lineWidth: 1000,
+        expectedBreakpoints: [0, 3],
+      },
+      {
+        items: [box(10), glue(10, 5, 5), box(100), forcedBreak()],
+        lineWidth: 50,
+        expectedBreakpoints: [0, 3],
+      },
+    ].forEach(({ items, lineWidth, expectedBreakpoints }, i) => {
+      it(`succeeds when max adjustment ratio is exceeded (${i + 1})`, () => {
         // Lay out input into a line which would need to stretch more than
         // `glue.width + maxAdjustmentRatio * glue.stretch` in order to fit.
         //
@@ -279,27 +282,37 @@ describe('layout', () => {
 
   describe('positionBoxes', () => {
     it('lays out boxes with justified margins', () => {
-      const items = [box(10), glue(10, 5, 5), box(10),
-                     glue(10, 5, 5), box(10), glue(10, 5, 5),
-                     forcedBreak()];
+      const items = [
+        box(10),
+        glue(10, 5, 5),
+        box(10),
+        glue(10, 5, 5),
+        box(10),
+        glue(10, 5, 5),
+        forcedBreak(),
+      ];
       const lineWidth = 35;
       const breakpoints = [0, 3, 6];
 
       const boxes = positionBoxes(items, lineWidth, breakpoints);
 
-      assert.deepEqual(boxes, [{
-        box: 0,
-        line: 0,
-        xOffset: 0,
-      },{
-        box: 2,
-        line: 0,
-        xOffset: 25,
-      },{
-        box: 4,
-        line: 1,
-        xOffset: 0,
-      }]);
+      assert.deepEqual(boxes, [
+        {
+          box: 0,
+          line: 0,
+          xOffset: 0,
+        },
+        {
+          box: 2,
+          line: 0,
+          xOffset: 25,
+        },
+        {
+          box: 4,
+          line: 1,
+          xOffset: 0,
+        },
+      ]);
     });
 
     it('does not let gap between boxes shrink below `glue.width - glue.shrink`', () => {
@@ -309,15 +322,18 @@ describe('layout', () => {
 
       const boxes = positionBoxes(items, lineWidth, breakpoints);
 
-      assert.deepEqual(boxes, [{
-        box: 0,
-        line: 0,
-        xOffset: 0,
-      },{
-        box: 2,
-        line: 0,
-        xOffset: 15,
-      }]);
+      assert.deepEqual(boxes, [
+        {
+          box: 0,
+          line: 0,
+          xOffset: 0,
+        },
+        {
+          box: 2,
+          line: 0,
+          xOffset: 15,
+        },
+      ]);
     });
   });
 
