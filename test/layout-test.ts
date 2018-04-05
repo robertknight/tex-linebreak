@@ -156,6 +156,16 @@ function glue(w: number, shrink: number, stretch: number): Glue {
 
 describe('layout', () => {
   describe('breakLines', () => {
+    it('returns an empty list if the input is empty', () => {
+      const breakpoints = breakLines([], 100);
+      assert.deepEqual(breakpoints, []);
+    });
+
+    it('returns just the initial breakpoint if there are no legal breakpoints', () => {
+      const breakpoints = breakLines([box(10)], 100);
+      assert.deepEqual(breakpoints, [0]);
+    });
+
     it('generates expected layout', () => {
       const f = readLayoutFixture(`${__dirname}/fixtures/layout.txt`);
       f.outputs.forEach(({ lines, layoutOptions }) => {

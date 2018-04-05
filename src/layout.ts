@@ -317,15 +317,14 @@ export function breakLines(
     }
   }
 
-  if (active.size === 0) {
-    throw new Error(
-      `Unable to find feasible breakpoints with adjustment ratio in [${MIN_ADJUSTMENT_RATIO}, ${
-        opts_.maxAdjustmentRatio
-      }]`,
-    );
-  }
-
   // Choose active node with fewest total demerits as the last breakpoint.
+  //
+  // There should always be an active node at this point since:
+  //
+  //  1. We add a node to the active set before entering the loop.
+  //  2. Each iteration of the loop either returns from the function, leaves the
+  //     active set unchanged and breaks early or finishes with a non-empty active
+  //     set.
   let bestNode: Node | null = null;
   active.forEach(a => {
     if (!bestNode || a.totalDemerits < bestNode.totalDemerits) {
