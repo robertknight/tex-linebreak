@@ -65,8 +65,18 @@ export interface Options {
    *
    * The maximum size which a `Glue` on a line can expand to is `glue.width +
    * (maxAdjustmentRatio * glue.stretch)`.
+   *
+   * If the paragraph cannot be laid out without exceeding this threshold then a
+   * `MaxAdjustmentExceededError` error is thrown. The caller can use this to
+   * apply hyphenation and try again. If `null`, lines are stretched as far as
+   * necessary.
    */
-  maxAdjustmentRatio: number;
+  maxAdjustmentRatio: number | null;
+
+  /**
+   * The maximum adjustment ratio used for the initial line breaking attempt.
+   */
+  initialMaxAdjustmentRatio: number;
 
   /**
    * Penalty for consecutive hyphenated lines.
@@ -100,10 +110,16 @@ function isForcedBreak(item: InputItem) {
 }
 
 const defaultOptions: Options = {
-  maxAdjustmentRatio: 1,
+  maxAdjustmentRatio: null,
+  initialMaxAdjustmentRatio: 1,
   doubleHyphenPenalty: 0,
   adjacentLooseTightPenalty: 0,
 };
+
+/**
+ * Error thrown by `breakLines` when `maxAdjustmentRatio` is exceeded.
+ */
+export class MaxAdjustmentExceededError extends Error {}
 
 /**
  * Break a paragraph of text into justified lines.
@@ -134,6 +150,10 @@ export function breakLines(
 
   const opts_ = { ...defaultOptions, ...opts };
   const lineLen = (i: number) => (Array.isArray(lineLengths) ? lineLengths[i] : lineLengths);
+  const currentMaxAdjustmentRatio = Math.min(
+    opts_.initialMaxAdjustmentRatio,
+    opts_.maxAdjustmentRatio !== null ? opts_.maxAdjustmentRatio : Infinity,
+  );
 
   type Node = {
     index: number; // Index in `items`.
@@ -222,7 +242,7 @@ export function breakLines(
       } else {
         adjustmentRatio = (idealLen - actualLen) / lineShrink;
       }
-      if (adjustmentRatio > opts_.maxAdjustmentRatio) {
+      if (adjustmentRatio > currentMaxAdjustmentRatio) {
         // In case we need to try again later with a higher
         // `maxAdjustmentRatio`, track the minimum value needed to produce
         // different output.
@@ -237,7 +257,7 @@ export function breakLines(
         active.delete(a);
         lastActive = a;
       }
-      if (adjustmentRatio >= MIN_ADJUSTMENT_RATIO && adjustmentRatio <= opts_.maxAdjustmentRatio) {
+      if (adjustmentRatio >= MIN_ADJUSTMENT_RATIO && adjustmentRatio <= currentMaxAdjustmentRatio) {
         // We found a feasible breakpoint. Compute a `demerits` score for it as
         // per formula on p. 1128.
         let demerits;
@@ -302,14 +322,17 @@ export function breakLines(
     }
 
     // Handle situation where there is no way to break the paragraph without
-    // shrinking or stretching a line beyond [-1, opts.maxAdjustmentRatio].
+    // shrinking or stretching a line beyond [-1, currentMaxAdjustmentRatio].
     if (active.size === 0) {
       if (isFinite(minAdjustmentRatioAboveThreshold)) {
+        if (opts_.maxAdjustmentRatio === currentMaxAdjustmentRatio) {
+          throw new MaxAdjustmentExceededError();
+        }
         // Too much stretching was required for an earlier ignored breakpoint.
         // Try again with a higher threshold.
         return breakLines(items, lineLengths, {
           ...opts,
-          maxAdjustmentRatio: minAdjustmentRatioAboveThreshold,
+          initialMaxAdjustmentRatio: minAdjustmentRatioAboveThreshold,
         });
       } else {
         // We cannot create a breakpoint sequence by increasing the max

@@ -11,6 +11,7 @@ import {
   Box,
   Glue,
   InputItem,
+  MaxAdjustmentExceededError,
   Penalty,
   TextBox,
   TextInputItem,
@@ -245,7 +246,7 @@ describe('layout', () => {
         expectedBreakpoints: [0, 3],
       },
     ].forEach(({ items, lineWidth, expectedBreakpoints }, i) => {
-      it(`succeeds when max adjustment ratio is exceeded (${i + 1})`, () => {
+      it(`succeeds when initial max adjustment ratio is exceeded (${i + 1})`, () => {
         // Lay out input into a line which would need to stretch more than
         // `glue.width + maxAdjustmentRatio * glue.stretch` in order to fit.
         //
@@ -254,7 +255,7 @@ describe('layout', () => {
         // retry with the same threshold after applying hyphenation to break
         // existing boxes and then only after that retry with a higher threshold.
         const breakpoints = breakLines(items, lineWidth, {
-          maxAdjustmentRatio: 1,
+          initialMaxAdjustmentRatio: 1,
         });
         assert.deepEqual(breakpoints, expectedBreakpoints);
       });
@@ -340,6 +341,12 @@ describe('layout', () => {
     it('throws if a glue item has negative stretch', () => {
       const items = [box(10), glue(5, 10, -10), forcedBreak()];
       assert.throws(() => breakLines(items, 15));
+    });
+
+    it('throws `MaxAdjustmentExceededError` if max adjustment ratio is exceeded', () => {
+      const items = [box(10), glue(5, 10, 10), box(10), forcedBreak()];
+      const opts = { maxAdjustmentRatio: 1 };
+      assert.throws(() => breakLines(items, 100, opts), MaxAdjustmentExceededError);
     });
   });
 
