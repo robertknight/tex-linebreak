@@ -196,6 +196,7 @@ export function breakLines(
       const idealLen = lineLen(a.line);
       const actualLen = sumWidth - a.totalWidth;
 
+      // nb. Division by zero produces `Infinity` here, which is what we want.
       if (actualLen < idealLen) {
         adjustmentRatio = (idealLen - actualLen) / lineStretch;
       } else {
@@ -291,8 +292,11 @@ export function breakLines(
           maxAdjustmentRatio: minAdjustmentRatioAboveThreshold,
         });
       } else {
-        // Too much shrinking required. Here we give up and create a breakpoint
-        // at the current position.
+        // We cannot create a breakpoint sequence by increasing the max
+        // adjustment ratio. This could happen if a box is too wide or there are
+        // glue items with zero stretch/shrink.
+        //
+        // Give up and create a breakpoint at the current position.
         active.add({
           index: b,
           line: lastActive!.line + 1,

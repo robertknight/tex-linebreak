@@ -205,8 +205,23 @@ describe('layout', () => {
       assert.deepEqual(breakpoints, [0, 1, 3, 5, 7, 9, 10]);
     });
 
-    // TODO - Handle case like above but where glue does not allow shrinking or
-    // stretching.
+    it('handles glue with zero stretch', () => {
+      const items = [box(10), glue(5, 0, 0), box(10), forcedBreak()];
+      const breakpoints = breakLines(items, 50);
+      assert.deepEqual(breakpoints, [0, 3]);
+    });
+
+    it('handles glue with zero shrink', () => {
+      const items = [box(10), glue(5, 0, 0), box(10), forcedBreak()];
+      const breakpoints = breakLines(items, 21);
+      assert.deepEqual(breakpoints, [0, 3]);
+    });
+
+    it('handles boxes that are wider than the line width', () => {
+      const items = [box(5), glue(5, 10, 10), box(100), glue(5, 10, 10), forcedBreak()];
+      const breakpoints = breakLines(items, 50);
+      assert.deepEqual(breakpoints, [0, 3, 4]);
+    });
 
     [
       {
@@ -234,9 +249,6 @@ describe('layout', () => {
         assert.deepEqual(breakpoints, expectedBreakpoints);
       });
     });
-
-    // TODO - Handle case like above but where glue does not allow shrinking or
-    // stretching.
 
     it('applies a penalty for consecutive lines ending with a hyphen', () => {
       const text = 'one two long-word one long-word';
