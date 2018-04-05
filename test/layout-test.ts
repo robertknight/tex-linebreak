@@ -25,7 +25,6 @@ interface LayoutFixture {
     /** Line-breaking options. */
     layoutOptions: {
       maxAdjustmentRatio: number;
-      chlPenalty: number;
       charWidth: number;
       lineWidths: number | number[];
     };
@@ -57,7 +56,6 @@ function readLayoutFixture(path: string): LayoutFixture {
   const defaultSettings = {
     charWidth: 5,
     maxAdjustmentRatio: 1,
-    chlPenalty: 10,
   };
 
   const content = readFileSync(path, { encoding: 'utf8' }).trim();
