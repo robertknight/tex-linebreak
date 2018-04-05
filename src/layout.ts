@@ -234,7 +234,12 @@ export function breakLines(
       const lineShrink = sumShrink - a.totalShrink;
       const lineStretch = sumStretch - a.totalStretch;
       const idealLen = lineLen(a.line);
-      const actualLen = sumWidth - a.totalWidth;
+      let actualLen = sumWidth - a.totalWidth;
+
+      // Include width of penalty in line length if chosen as a breakpoint.
+      if (item.type === 'penalty') {
+        actualLen += item.width;
+      }
 
       // nb. Division by zero produces `Infinity` here, which is what we want.
       if (actualLen < idealLen) {
