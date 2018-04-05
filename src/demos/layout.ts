@@ -3,7 +3,16 @@
  * to lay out a paragraph of justified text and render it into an HTML canvas.
  */
 
-import { layoutItemsFromString, layoutParagraph, TextBox, MAX_COST, MIN_COST } from '../layout';
+import {
+  layoutItemsFromString,
+  layoutParagraph,
+  MaxAdjustmentExceededError,
+  PositionedItem,
+  TextBox,
+  TextInputItem,
+  MAX_COST,
+  MIN_COST,
+} from '../layout';
 
 /**
  * Render a string as justified text into a `<canvas>`.
@@ -26,9 +35,10 @@ function renderText(c: HTMLCanvasElement, t: string) {
   const lineSpacing = 30;
   boxPositions.forEach(bp => {
     const yOffset = (bp.line + 1) * lineSpacing;
-    const box = items[bp.box] as TextBox;
+    const item = items[bp.item];
+    const text = item.type === 'box' ? (item as TextBox).text : '-';
     let xOffset = leftMargin + bp.xOffset;
-    ctx.fillText(box.text, xOffset, yOffset);
+    ctx.fillText(text, xOffset, yOffset);
   });
 }
 
@@ -45,8 +55,30 @@ function renderSpans(el: HTMLElement, t: string) {
   ctx.font = `${fontSize} ${fontFamily}`;
 
   // Layout text.
-  const items = layoutItemsFromString(t, w => ctx.measureText(w).width);
-  const boxPositions = layoutParagraph(items, lineWidth);
+  let items: TextInputItem[];
+  let boxPositions: PositionedItem[];
+
+  try {
+    items = layoutItemsFromString(t, w => ctx.measureText(w).width);
+    boxPositions = layoutParagraph(items, lineWidth, {
+      maxAdjustmentRatio: 1,
+    });
+  } catch (e) {
+    console.log('Retrying with hyphenation');
+    if (e instanceof MaxAdjustmentExceededError) {
+      const hyphenate = (word: string) => {
+        const chunks = [];
+        for (let i = 0; i < word.length; i += 3) {
+          chunks.push(word.slice(i, i + 3));
+        }
+        return chunks;
+      };
+      items = layoutItemsFromString(t, w => ctx.measureText(w).width, hyphenate);
+      boxPositions = layoutParagraph(items, lineWidth);
+    } else {
+      throw e;
+    }
+  }
 
   // Generate `<div>` and `<span>` elements.
   const addLine = () => {
@@ -70,10 +102,14 @@ function renderSpans(el: HTMLElement, t: string) {
       prevXOffset = 0;
     }
     const span = document.createElement('span');
-    const item = items[bp.box];
-    span.textContent = (item as TextBox).text;
+    const item = items[bp.item];
+    if (item.type === 'box') {
+      span.textContent = (item as TextBox).text;
+    } else if (item.type === 'penalty') {
+      span.textContent = '-';
+    }
     span.style.marginLeft = `${bp.xOffset - prevXOffset}px`;
-    prevXOffset = bp.xOffset + ctx.measureText(span.textContent).width;
+    prevXOffset = bp.xOffset + item.width;
     lineEl.appendChild(span);
   });
 }

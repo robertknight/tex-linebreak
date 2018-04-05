@@ -159,10 +159,14 @@ export function breakLines(
     index: number; // Index in `items`.
     line: number; // Line number.
     fitness: number;
-    totalWidth: number; // Sum of `width` up to this node.
-    totalStretch: number; // Sum of `stretch` up to this node.
-    totalShrink: number; // Sum of `shrink` up to this node.
-    totalDemerits: number; // Sum of line scores up to this node.
+    // Sum of `width` up to first box or forced break after this break.
+    totalWidth: number;
+    // Sum of `stretch` up to first box or forced break after this break.
+    totalStretch: number;
+    // Sum of `shrink` up to first box or forced break after this break.
+    totalShrink: number;
+    // Minimum sum of demerits up this break.
+    totalDemerits: number;
     prev: null | Node;
   };
 
@@ -393,12 +397,12 @@ export function breakLines(
   return output;
 }
 
-export interface PositionedBox {
-  /** Index of the box. */
-  box: number;
-  /** Index of the line on which the resulting box should appear. */
+export interface PositionedItem {
+  /** Index of the box or penalty item. */
+  item: number;
+  /** Index of the line on which the resulting item should appear. */
   line: number;
-  /** X offset of the box. */
+  /** X offset of the item. */
   xOffset: number;
 }
 
@@ -428,14 +432,17 @@ export function adjustmentRatios(
     let lineShrink = 0;
     let lineStretch = 0;
 
-    for (let p = breakpoints[b]; p < breakpoints[b + 1]; p++) {
+    const start = b === 0 ? breakpoints[b] : breakpoints[b] + 1;
+    for (let p = start; p <= breakpoints[b + 1]; p++) {
       const item = items[p];
       if (item.type === 'box') {
         actualWidth += item.width;
-      } else if (item.type === 'glue' && p !== breakpoints[b]) {
+      } else if (item.type === 'glue' && p !== start && p !== breakpoints[b + 1]) {
         actualWidth += item.width;
         lineShrink += item.shrink;
         lineStretch += item.stretch;
+      } else if (item.type === 'penalty' && p === breakpoints[b + 1]) {
+        actualWidth += item.width;
       }
     }
 
@@ -460,30 +467,31 @@ export function adjustmentRatios(
  * @param lineLengths - Length or lengths of each line.
  * @param breakpoints - Indexes within `items` of the start of each line.
  */
-export function positionBoxes(
+export function positionItems(
   items: InputItem[],
   lineLengths: number | number[],
   breakpoints: number[],
-): PositionedBox[] {
+): PositionedItem[] {
   const adjRatios = adjustmentRatios(items, lineLengths, breakpoints);
-  const result: PositionedBox[] = [];
+  const result: PositionedItem[] = [];
 
   for (let b = 0; b < breakpoints.length - 1; b++) {
     // Limit the amount of shrinking of lines to 1x `glue.shrink` for each glue
     // item in a line.
     const adjustmentRatio = Math.max(adjRatios[b], MIN_ADJUSTMENT_RATIO);
     let xOffset = 0;
+    const start = b === 0 ? breakpoints[b] : breakpoints[b] + 1;
 
-    for (let p = breakpoints[b]; p < breakpoints[b + 1]; p++) {
+    for (let p = start; p <= breakpoints[b + 1]; p++) {
       const item = items[p];
       if (item.type === 'box') {
         result.push({
-          box: p,
+          item: p,
           line: b,
           xOffset,
         });
         xOffset += item.width;
-      } else if (item.type === 'glue' && p !== breakpoints[b]) {
+      } else if (item.type === 'glue' && p !== start && p !== breakpoints[b + 1]) {
         let gap;
         if (adjustmentRatio < 0) {
           gap = item.width + adjustmentRatio * item.shrink;
@@ -491,6 +499,12 @@ export function positionBoxes(
           gap = item.width + adjustmentRatio * item.stretch;
         }
         xOffset += gap;
+      } else if (item.type === 'penalty' && p === breakpoints[b + 1] && item.width > 0) {
+        result.push({
+          item: p,
+          line: b,
+          xOffset,
+        });
       }
     }
   }
@@ -510,9 +524,9 @@ export function layoutParagraph(
   items: InputItem[],
   lineLengths: number | number[],
   opts?: Partial<Options>,
-): PositionedBox[] {
+): PositionedItem[] {
   const breakpoints = breakLines(items, lineLengths, opts);
-  return positionBoxes(items, lineLengths, breakpoints);
+  return positionItems(items, lineLengths, breakpoints);
 }
 
 /**
@@ -537,10 +551,14 @@ export function forcedBreak(): Penalty {
  *
  * @param s - Text to process
  * @param measureFn - Callback that calculates the width of a given string
+ * @param hyphenateFn - Callback that calculates legal hyphenation points in
+ *                      words and returns an array of pieces that can be joined
+ *                      with hyphens.
  */
 export function layoutItemsFromString(
   s: string,
   measureFn: (word: string) => number,
+  hyphenateFn?: (word: string) => string[],
 ): TextInputItem[] {
   const items: TextInputItem[] = [];
   const words = s.split(/\s+/).filter(w => w.length > 0);
@@ -548,12 +566,26 @@ export function layoutItemsFromString(
   // Here we assume that every space has the same default size. Callers who want
   // more flexibility can use the lower-level functions.
   const spaceWidth = measureFn(' ');
+  const hyphenWidth = measureFn('-');
 
   const shrink = Math.max(0, spaceWidth - 2);
   words.forEach(w => {
-    const b: TextBox = { type: 'box', width: measureFn(w), text: w };
+    if (hyphenateFn) {
+      const chunks = hyphenateFn(w);
+      chunks.forEach((c, i) => {
+        const b: TextBox = { type: 'box', width: measureFn(c), text: c };
+        items.push(b);
+        if (i < chunks.length - 1) {
+          const hyphen: Penalty = { type: 'penalty', width: 0, cost: 10, flagged: true };
+          items.push(hyphen);
+        }
+      });
+    } else {
+      const b: TextBox = { type: 'box', width: measureFn(w), text: w };
+      items.push(b);
+    }
     const g: Glue = { type: 'glue', width: spaceWidth, shrink, stretch: spaceWidth * 1.5 };
-    items.push(b, g);
+    items.push(g);
   });
   // Add "finishing glue" to space out final line.
   items.push({ type: 'glue', width: 0, stretch: MAX_COST, shrink: 0 });

@@ -7,7 +7,7 @@ import {
   forcedBreak,
   layoutItemsFromString,
   layoutParagraph,
-  positionBoxes,
+  positionItems,
   Box,
   Glue,
   InputItem,
@@ -348,8 +348,8 @@ describe('layout', () => {
     });
   });
 
-  describe('positionBoxes', () => {
-    it('lays out boxes with justified margins', () => {
+  describe('positionItems', () => {
+    it('lays out items with justified margins', () => {
       const items = [
         box(10),
         glue(10, 5, 5),
@@ -362,21 +362,21 @@ describe('layout', () => {
       const lineWidth = 35;
       const breakpoints = [0, 3, 6];
 
-      const boxes = positionBoxes(items, lineWidth, breakpoints);
+      const boxes = positionItems(items, lineWidth, breakpoints);
 
       assert.deepEqual(boxes, [
         {
-          box: 0,
+          item: 0,
           line: 0,
           xOffset: 0,
         },
         {
-          box: 2,
+          item: 2,
           line: 0,
           xOffset: 25,
         },
         {
-          box: 4,
+          item: 4,
           line: 1,
           xOffset: 0,
         },
@@ -388,16 +388,16 @@ describe('layout', () => {
       const lineWidth = 50;
       const breakpoints = [0, 3];
 
-      const boxes = positionBoxes(items, lineWidth, breakpoints);
+      const boxes = positionItems(items, lineWidth, breakpoints);
 
       assert.deepEqual(boxes, [
         {
-          box: 0,
+          item: 0,
           line: 0,
           xOffset: 0,
         },
         {
-          box: 2,
+          item: 2,
           line: 0,
           xOffset: 15,
         },
