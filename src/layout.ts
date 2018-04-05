@@ -3,6 +3,8 @@
  */
 export interface Box {
   type: 'box';
+
+  /** Amount of space required by this content. Must be >= 0. */
   width: number;
 }
 
@@ -15,6 +17,9 @@ export interface Box {
  */
 export interface Glue {
   type: 'glue';
+  /**
+   * Preferred width of this space. Must be >= 0.
+   */
   width: number;
   /** Maximum amount by which this space can grow. */
   stretch: number;
@@ -27,6 +32,11 @@ export interface Glue {
  */
 export interface Penalty {
   type: 'penalty';
+
+  /**
+   * Amount of space required for typeset content to be added (eg. a hyphen) if
+   * a line is broken here. Must be >= 0.
+   */
   width: number;
   /**
    * The undesirability of breaking the line at this point.
@@ -125,8 +135,6 @@ export function breakLines(
   const opts_ = { ...defaultOptions, ...opts };
   const lineLen = (i: number) => (Array.isArray(lineLengths) ? lineLengths[i] : lineLengths);
 
-  // TBD - Enforce "Restriction 1" and "Restriction 2" from p.1156.
-
   type Node = {
     index: number; // Index in `items`.
     line: number; // Line number.
@@ -165,12 +173,24 @@ export function breakLines(
   for (let b = 0; b < items.length; b++) {
     const item = items[b];
 
+    // TeX allows items with negative widths or stretch factors but imposes two
+    // restrictions for efficiency. These restrictions are not yet implemented
+    // here and we avoid the problem by just disallowing negative
+    // width/shrink/stretch amounts.
+    if (item.width < 0) {
+      throw new Error(`Item ${b} has disallowed negative width`);
+    }
+
     // Determine if this is a feasible breakpoint and update `sumWidth`,
     // `sumStretch` and `sumShrink`.
     let canBreak = false;
     if (item.type === 'box') {
       sumWidth += item.width;
     } else if (item.type === 'glue') {
+      if (item.shrink < 0 || item.stretch < 0) {
+        throw new Error(`Item ${b} has disallowed negative stretch or shrink`);
+      }
+
       canBreak = b > 0 && items[b - 1].type === 'box';
       if (!canBreak) {
         sumWidth += item.width;

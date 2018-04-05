@@ -326,6 +326,21 @@ describe('layout', () => {
 
       assert.notDeepEqual(linesA, linesB);
     });
+
+    it('throws if an item has negative width', () => {
+      const items = [box(-10), glue(5, 10, 10), forcedBreak()];
+      assert.throws(() => breakLines(items, 15));
+    });
+
+    it('throws if a glue item has negative shrink', () => {
+      const items = [box(10), glue(5, -10, 10), forcedBreak()];
+      assert.throws(() => breakLines(items, 15));
+    });
+
+    it('throws if a glue item has negative stretch', () => {
+      const items = [box(10), glue(5, 10, -10), forcedBreak()];
+      assert.throws(() => breakLines(items, 15));
+    });
   });
 
   describe('positionBoxes', () => {
