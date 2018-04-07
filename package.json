@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "build-demos": "webpack",
+    "build-demos": "webpack --mode development",
     "format": "prettier --write src/*.ts src/**/*.ts test/**/*.ts",
     "watch": "webpack --watch --mode development",
     "test": "mocha --compilers ts:ts-node/register test/**/*-test.ts",
