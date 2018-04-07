@@ -29,5 +29,8 @@
     "watch": "webpack --watch --mode development",
     "test": "mocha --compilers ts:ts-node/register test/**/*-test.ts",
     "test-watch": "mocha --compilers ts:ts-node/register --watch --watch-extensions ts test/**/*-test.ts"
+  },
+  "dependencies": {
+    "error-subclass": "^2.2.0"
   }
 }
