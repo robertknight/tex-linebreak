@@ -4622,6 +4622,10 @@ write-file-atomic@^1.2.0:
     imurmurhash "^0.1.4"
     slide "^1.1.5"
 
+xorshift@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/xorshift/-/xorshift-1.1.1.tgz#fb85883a82a0625c9f11372205df75b67dfe53e0"
+
 xtend@^4.0.0, xtend@~4.0.0, xtend@~4.0.1:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/xtend/-/xtend-4.0.1.tgz#a5c6d532be656e23db820efb943a1f04998d63af"

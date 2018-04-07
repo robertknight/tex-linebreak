@@ -1,5 +1,10 @@
-import { assert } from 'chai';
 import { readFileSync, writeFileSync } from 'fs';
+
+import { assert } from 'chai';
+import xorShift from 'xorshift';
+
+// This library was clearly not designed to be used with TypeScript :(
+const XorShift = xorShift.constructor;
 
 import {
   adjustmentRatios,
@@ -199,7 +204,7 @@ describe('layout', () => {
       const measure = (text: string) => text.length * 5;
       const items = layoutItemsFromString('one fine day in the middle of the night', measure);
       const breakpoints = breakLines(items, 100);
-      assert.deepEqual(breakpoints, [0, 9, 17, 19]);
+      assert.deepEqual(breakpoints, [0, 9, 19]);
     });
 
     it('succeeds when min adjustment ratio is exceeded', () => {
@@ -283,16 +288,14 @@ describe('layout', () => {
 
       // Break lines with a double-hyphen penalty.
       breakpoints = breakLines(items, lineWidth, {
-        doubleHyphenPenalty: 50,
+        doubleHyphenPenalty: 200,
       });
       lines = lineStrings(items, breakpoints);
       assert.deepEqual(
         lines,
         [
-          // FIXME - The hyphen should appear at the end of the line, not the
-          // start.
-          'one two long',
-          '-word one',
+          'one two',
+          'long-word one',
           'long-word',
         ],
         'did not break as expected with penalty',
@@ -301,29 +304,36 @@ describe('layout', () => {
 
     it('applies a penalty when adjacent lines have different tightness', () => {
       // Getting this test case to produce different output with and without the
-      // penalty applied required a great deal of hand-tweaking. It would be
-      // preferable to use a simpler test case.
-
-      const text =
-        'Accurate 3D hand pose estimation plays an important role in Human Machine Interaction (HMI). In the reality of HMI, joints in fingers stretching out, especially corresponding fingertips, are much more important than other joints. We propose a novel method to refine stretching_out finger joint locations after obtaining rough hand pose estimation. It first detects which fingers are stretching out, then neighbor pixels of certain joint vote for its new location based on random forests. The algorithm is tested on two public datasets: MSRA15 and ICVL. After the refinement stage of stretching_out fingers, errors of predicted HMI finger joint locations are significantly reduced. Mean error of all fingertips reduces around 5mm (relatively more than 20%). Stretching_out fingertip locations are even more precise, which in MSRA15 reduces 10.51mm (relatively 41.4%).';
-      const charWidth = 5;
-      const glueStretch = 10;
-      const items = itemsFromString(text, charWidth, glueStretch);
-      const lineWidth = 30 * charWidth;
+      // penalty applied required ~~lots of fiddling~~ highly scientific
+      // adjustments.
+      //
+      // It requires that boxes have enough variety and maximum width, and glues
+      // have sufficiently small stretch, that adjustment ratios between lines
+      // are large enough to fall into different "fitness class" thresholds.
+      const prng = new (XorShift as any)([1, 10, 15, 20]);
+      const wordSoup = (length: number) => {
+        let result: InputItem[] = [];
+        let wordLen = 5;
+        while (result.length < length) {
+          result.push({ type: 'box', width: prng.random() * 20 });
+          result.push({ type: 'glue', width: 6, shrink: 3, stretch: 5 });
+        }
+        return result;
+      };
+      const items = wordSoup(100);
+      const lineWidth = 50;
 
       // Break lines without contrasting tightess penalty.
       let breakpointsA = breakLines(items, lineWidth, {
         adjacentLooseTightPenalty: 0,
       });
-      let linesA = lineStrings(items, breakpointsA);
 
       // Break lines with constrasting tightness penalty.
       let breakpointsB = breakLines(items, lineWidth, {
         adjacentLooseTightPenalty: 10000,
       });
-      let linesB = lineStrings(items, breakpointsB);
 
-      assert.notDeepEqual(linesA, linesB);
+      assert.notDeepEqual(breakpointsA, breakpointsB);
     });
 
     it('throws if an item has negative width', () => {

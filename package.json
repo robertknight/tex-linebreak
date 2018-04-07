@@ -14,9 +14,12 @@
     "ts-node": "^5.0.1",
     "typescript": "^2.8.1",
     "webpack": "^4.4.1",
-    "webpack-cli": "^2.0.13"
+    "webpack-cli": "^2.0.13",
+    "xorshift": "^1.1.1"
   },
-  "files": ["dist/"],
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "build": "tsc",
     "build-demos": "webpack",

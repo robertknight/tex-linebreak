@@ -305,13 +305,35 @@ export function breakLines(
           demerits += opts_.adjacentLooseTightPenalty;
         }
 
+        // If this breakpoint is followed by glue or non-breakable penalty items
+        // then we don't want to include the width of those when calculating the
+        // width of lines starting after this breakpoint. This is because when
+        // rendering we ignore glue/penalty items at the start of lines.
+        let widthToNextBox = 0;
+        let shrinkToNextBox = 0;
+        let stretchToNextBox = 0;
+        for (let bp = b; bp < items.length; bp++) {
+          const item = items[bp];
+          if (item.type === 'box') {
+            break;
+          }
+          if (item.type === 'penalty' && item.cost >= MAX_COST) {
+            break;
+          }
+          widthToNextBox += item.width;
+          if (item.type === 'glue') {
+            shrinkToNextBox += item.shrink;
+            stretchToNextBox += item.stretch;
+          }
+        }
+
         const node = {
           index: b,
           line: a.line + 1,
           fitness,
-          totalWidth: sumWidth,
-          totalShrink: sumShrink,
-          totalStretch: sumStretch,
+          totalWidth: sumWidth + widthToNextBox,
+          totalShrink: sumShrink + shrinkToNextBox,
+          totalStretch: sumStretch + stretchToNextBox,
           totalDemerits: a.totalDemerits + demerits,
           prev: a,
         };
