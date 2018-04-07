@@ -7,8 +7,9 @@ import Hypher from 'hypher';
 import enUsPatterns from 'hyphenation.en-us';
 
 import {
+  breakLines,
   layoutItemsFromString,
-  layoutParagraph,
+  positionItems,
   MaxAdjustmentExceededError,
   PositionedItem,
   TextBox,
@@ -33,13 +34,15 @@ function layoutText(
 
   try {
     items = layoutItemsFromString(text, measure);
-    positions = layoutParagraph(items, lineWidth, {
+    const breakpoints = breakLines(items, lineWidth, {
       maxAdjustmentRatio: 1,
     });
+    positions = positionItems(items, lineWidth, breakpoints);
   } catch (e) {
     if (e instanceof MaxAdjustmentExceededError) {
       items = layoutItemsFromString(text, measure, hyphenate);
-      positions = layoutParagraph(items, lineWidth);
+      const breakpoints = breakLines(items, lineWidth);
+      positions = positionItems(items, lineWidth, breakpoints);
     } else {
       throw e;
     }

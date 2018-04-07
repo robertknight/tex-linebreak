@@ -535,23 +535,6 @@ export function positionItems(
 }
 
 /**
- * Lay out a paragraph of text into justified lines.
- *
- * Returns the X positions and line numbers of each "box" (word) from the input.
- *
- * This is a high-level helper which combines `breakLines` and `positionBoxes`
- * for convenience.
- */
-export function layoutParagraph(
-  items: InputItem[],
-  lineLengths: number | number[],
-  opts?: Partial<Options>,
-): PositionedItem[] {
-  const breakpoints = breakLines(items, lineLengths, opts);
-  return positionItems(items, lineLengths, breakpoints);
-}
-
-/**
  * A box which also carries around with it some associated text.
  */
 export interface TextBox extends Box {
@@ -568,8 +551,8 @@ export function forcedBreak(): Penalty {
 }
 
 /**
- * A convenience function that generates a set of input items for
- * `layoutParagraph` or `breakLines` from a string.
+ * A convenience function that generates a set of input items for `breakLines`
+ * from a string.
  *
  * @param s - Text to process
  * @param measureFn - Callback that calculates the width of a given string

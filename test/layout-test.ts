@@ -11,7 +11,6 @@ import {
   breakLines,
   forcedBreak,
   layoutItemsFromString,
-  layoutParagraph,
   positionItems,
   Box,
   Glue,
