@@ -297,11 +297,7 @@ describe('layout', () => {
       lines = lineStrings(items, breakpoints);
       assert.deepEqual(
         lines,
-        [
-          'one two',
-          'long-word one',
-          'long-word',
-        ],
+        ['one two', 'long-word one', 'long-word'],
         'did not break as expected with penalty',
       );
     });
