@@ -34,13 +34,23 @@ Node) or render target (`<canvas>`, HTML elements, PDF).
 
 ## Usage
 
-First, add the _tex-linebreak_ package to your dependencies.
+First, add the _tex-linebreak_ package to your dependencies:
 
 ```sh
 npm install tex-linebreak
 ```
 
-Then use the APIs to lay out and render text:
+The library has low-level APIs which implement the core line-breaking and
+positioning algorithm, as well as higher-level APIs that are convenient to use
+when laying out text.
+
+### Low-level APIs
+
+The low-level APIs `breakLines` and `positionItems` work with generic "box"
+(typeset material), "glue" (spaces with flexible sizing) and "penalty" items.
+Typically "boxes" are words, "glue" items are spaces and "penalty" items
+represent hyphenation points or the end of a paragraph. However you can use them
+to lay out arbitrary content.
 
 ```js
 import { layoutItemsFromString, breakLines, positionItems } from 'tex-linebreak';
@@ -74,12 +84,51 @@ positionedItems.forEach(pi => {
 });
 ```
 
+### High-level APIs
+
+The high-level APIs provide convenience methods for laying out text into lines,
+as well as using hyphenation if necessary. _tex-linebreak_ does not provide
+hyphenation of words itself, but you can use an existing package such as
+[hypher](https://github.com/bramstein/hypher).
+
+```js
+import { layoutText } from 'tex-linebreak';
+
+import Hypher from 'hypher';
+import enUsPatterns from 'hyphenation.en-us';
+
+const hyphenate = word => hyphenator.hyphenate(word);
+const measure = word => word.length * 5;
+
+const { items, positions } = layoutText(text, lineWidth, measure, hyphenate);
+
+positions.forEach(pos => {
+  // Draw text as in the above example for the low-level APIs
+});
+```
+
+## API reference
+
+The source files in [src/](src/) have documentation in the form of TypeScript
+annotations.
+
+## Examples
+
 For working code showing different ways to use this library, see [the
-demos](src/demos/).
+demos](src/demos/). You can build and run the demos using:
 
-## API
+```
+npm i -g http-server
 
-See [src/layout.ts](src/layout.ts) for API documentation.
+git clone https://github.com/robertknight/tex-linebreak.git
+cd tex-linebreak
+yarn
+yarn build-demos
+http-server -c-1
+```
+
+Then navigate to http://127.0.0.1:8080/src/demos/layout.html (note that
+http-server may choose a different port).
 
 ## References
 
