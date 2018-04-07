@@ -598,7 +598,7 @@ export function layoutItemsFromString(
         const b: TextBox = { type: 'box', width: measureFn(c), text: c };
         items.push(b);
         if (i < chunks.length - 1) {
-          const hyphen: Penalty = { type: 'penalty', width: 0, cost: 10, flagged: true };
+          const hyphen: Penalty = { type: 'penalty', width: hyphenWidth, cost: 10, flagged: true };
           items.push(hyphen);
         }
       });

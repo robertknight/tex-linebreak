@@ -158,6 +158,10 @@ function glue(w: number, shrink: number, stretch: number): Glue {
   return { type: 'glue', width: w, shrink, stretch };
 }
 
+function penalty(w: number, cost: number, flagged: boolean): Penalty {
+  return { type: 'penalty', width: w, cost, flagged };
+}
+
 describe('layout', () => {
   describe('breakLines', () => {
     it('returns an empty list if the input is empty', () => {
@@ -454,6 +458,30 @@ describe('layout', () => {
         flagged: false,
         width: 0,
       });
+    });
+
+    it('generates flagged penalty items at hyphenation points', () => {
+      const hyphenate = (w: string) => w.split('-');
+      const measure = (w: string) => (w === '-' ? 1 : w.length * 5);
+
+      const items = layoutItemsFromString('hel-lo wo-rld', measure, hyphenate).map(
+        it =>
+          // Replace `TextBox` items with `Box` items.
+          it.type === 'box' ? { type: 'box', width: it.width } : it,
+      );
+
+      assert.deepEqual(items, [
+        box(15),
+        penalty(1, 10, true),
+        box(10),
+        glue(5, 3, 7.5),
+        box(10),
+        penalty(1, 10, true),
+        box(15),
+        glue(5, 3, 7.5),
+        glue(0, 0, 1000),
+        forcedBreak(),
+      ]);
     });
   });
 });
