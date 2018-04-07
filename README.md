@@ -4,36 +4,56 @@
 ![npm version](https://img.shields.io/npm/v/tex-linebreak.svg)
 
 _tex-linebreak_ is a JavaScript library for laying out justified text as you
-would find in a newspaper, book or technical paper.
+would find in a newspaper, book or technical paper. It implements the
+Knuth-Plass line-breaking algorithm, as used by TeX.
 
-It implements the Knuth-Plass line-breaking algorithm, as used by TeX. Compared
-to standard methods of justifying text (eg.  `text-align: justify` in CSS) this
-method produces more optimal spacing with fewer lines having spacing between
-words that is too tight or too loose, both of which are difficult to read.
+## Introduction
 
-_tex-linebreak_ has no dependencies on a particular JS environment (browser,
-Node) or render target (`<canvas>`, HTML elements, PDF).
+Most text on the web is presented with "ragged-right" margins, which is arguably
+less attractive than the justified text you would find in eg. a scientific paper
+or newspaper. Text can be justified in web pages using `text-align: justify`.
+This option alone tends to result in large&nbsp;&nbsp;&nbsp;spaces
+&nbsp;&nbsp;&nbsp;between words which is distracting to read. This is due to the
+use of "first fit" line-breaking algorithms where the browser considers only the
+current line when finding the next breakpoint. Some browsers support hyphenation
+via `hyphens: auto` which reduces this effect. However the first-fit approach
+can still produce wide lines and it can also produce more hyphenated lines than
+necessary.
+
+The Knuth-Plass algorithm on the other hand optimizes the spacing between words
+over the whole paragraph, seeking to minimize the overall "badness" of the
+layout. This factor depends on the amount by which spaces have been shrunk or
+stretched and the number of hyphenated lines. The benefits of this approach are
+greater when rendering narrower columns of text (eg. on small screens).
+
+This table compares the same text rendered in the same environment (font, font
+size, device width, margins) using CSS justification, CSS justification +
+hyphenation and this library:
 
 <table>
   <tr>
-    <td>CSS `text-align: justify` (Firefox 61)</td>
-    <td>_tex-linebreak_ output rendered</td>
+    <td>Safari: text-align: justify</td>
+    <td>Chrome: text-align: justify; hyphens: auto</td>
+    <td>_tex-linebreak_</td>
   </tr>
   <tr>
-    <td><img width="400" src="images/css-text-align-output.png"></td>
-    <td><img width="400" src="images/tex-linebreak-output.png"></td>
+    <td><img width="200" src="images/bigint-safari-justify.png"></td>
+    <td><img width="200" src="images/bigint-chrome-justify-hyphens.png"></td>
+    <td><img width="200" src="images/bigint-tex-linebreak.png"></td>
   </tr>
   <tr>
-    <td>Text justified using the browser's `text-align` option
-        can have a large amount of inter-word spacing in places.
-        This depends on the browser's implementation, but it affects
-        Safari, Firefox and Chrome to varying degrees.</td>
-    <td>The TeX algorithm in contrast minimizes the amount of
-        stretching/shrinking of spaces required over the whole paragraph,
-        producing fewer large gaps and making the output more comfortable
-        to read.</td>
+    <td>CSS justification produces large spaces on the second and penultimate
+        lines.</td>
+    <td>Enabling hyphenation using `hyphens: auto` in browsers that support it
+        (as of 2018-04-07 this appears to be only Chrome) produces better
+        output but still produces wide lines.</td>
+    <td>The TeX algorithm in contrast hyphenates fewer lines and avoids
+        excessive spacing between words.</td>
   </tr>
 </table>
+
+_tex-linebreak_ has no dependencies on a particular JS environment (browser,
+Node) or render target (`<canvas>`, HTML elements, PDF).
 
 ## Usage
 
