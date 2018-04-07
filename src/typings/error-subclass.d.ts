@@ -1,4 +1,3 @@
 declare module 'error-subclass' {
-  export default class ErrorSubclass extends Error {
-  }
+  export default class ErrorSubclass extends Error {}
 }
