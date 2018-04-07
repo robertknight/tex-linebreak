@@ -8,15 +8,14 @@ import enUsPatterns from 'hyphenation.en-us';
 
 import {
   breakLines,
-  layoutItemsFromString,
   positionItems,
   MaxAdjustmentExceededError,
   PositionedItem,
-  TextBox,
-  TextInputItem,
   MAX_COST,
   MIN_COST,
 } from '../layout';
+
+import { layoutItemsFromString, TextBox, TextInputItem } from '../helpers';
 
 const hyphenator = new Hypher(enUsPatterns);
 
