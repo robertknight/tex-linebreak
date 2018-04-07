@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "main": "dist/src/index.js",
   "license": "MIT",
+  "author": {
+    "name": "Robert Knight",
+    "email": "robertknight@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robertknight/tex-linebreak.git"
+  },
   "devDependencies": {
     "@types/chai": "^4.1.2",
     "@types/mocha": "^5.0.0",
@@ -20,7 +28,7 @@
     "xorshift": "^1.1.1"
   },
   "files": [
-    "dist/"
+    "dist/src/"
   ],
   "scripts": {
     "build": "tsc",
