@@ -5,18 +5,25 @@
   </head>
   <body>
     <h1>Paragraph layout demo</h1>
-    <p>Input text:</p>
+        <p>Input text:</p>
     <textarea class="input" rows="5" cols="80">
 When the first paper volume of Donald Knuth's The Art of Computer Programming was published in 1968,[4] it was typeset using hot metal typesetting set by a Monotype Corporation typecaster. This method, dating back to the 19th century, produced a "good classic style" appreciated by Knuth. When the second edition of the second volume was published, in 1976, the whole book had to be typeset again because the Monotype technology had been largely replaced by phototypesetting, and the original fonts were no longer available.[5] When Knuth received the galley proofs of the new book on 30 March 1977, he found them awful.[6] Around that time, Knuth saw for the first time the output of a high-quality digital typesetting system, and became interested in digital typography. The disappointing galley proofs gave him the final motivation to solve the problem at hand once and for all by designing his own typesetting system. On 13 May 1977, he wrote a memo to himself describing the basic features of TeX.[7]
     </textarea>
     <p>Line width: <input type="range" min="150" max="500"
                                                  class="js-line-width"
-                                                 value="300"></p>
-    <p>Output rendered to <code>&lt;span&gt;</code> tags:</p>
+                                                 value="320"></p>
+
+    <p>Input rendered as HTML:</p>
+    <p class="html-p js-tex-linebreak">some <a href="#">simple text <i>with</i></a> embedded <code>inline</code>
+    and <span style="inline-block">block</span> elements can be found in this
+    paragraph of text which includes <b>bold text</b>, as well as <i>italic
+      text</i>.</p>
+
+    <p>Input rendered as text with <code>&lt;span&gt;</code> tags:</p>
     <p class="output-p"></p>
-    <p>Output rendered to canvas:</p>
+    <p>Input rendered to canvas:</p>
     <canvas class="canvas" width="500" height="800"></canvas>
-    <p>Output justified by browser using <code>text-align: justify</code> and
+    <p>Input justified by browser using <code>text-align: justify</code> and
        hyphenated with <code>hyphens: auto</code>:</p>
     <p class="output-p css-output-p"></p>
 

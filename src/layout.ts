@@ -422,12 +422,19 @@ export function breakLines(
 }
 
 export interface PositionedItem {
-  /** Index of the box or penalty item. */
+  /** Index of the item. */
   item: number;
   /** Index of the line on which the resulting item should appear. */
   line: number;
   /** X offset of the item. */
   xOffset: number;
+  /**
+   * Width which this item should be rendered with.
+   *
+   * For box and penalty items this will just be the item's width.
+   * For glue items this will be the adjusted width.
+   */
+  width: number;
 }
 
 /**
@@ -483,6 +490,10 @@ export function adjustmentRatios(
   return ratios;
 }
 
+export interface PositionOptions {
+  includeGlue?: boolean;
+}
+
 /**
  * Compute the positions at which to draw boxes forming a paragraph given a set
  * of breakpoints.
@@ -495,6 +506,7 @@ export function positionItems(
   items: InputItem[],
   lineLengths: number | number[],
   breakpoints: number[],
+  options: PositionOptions = {},
 ): PositionedItem[] {
   const adjRatios = adjustmentRatios(items, lineLengths, breakpoints);
   const result: PositionedItem[] = [];
@@ -513,6 +525,7 @@ export function positionItems(
           item: p,
           line: b,
           xOffset,
+          width: item.width,
         });
         xOffset += item.width;
       } else if (item.type === 'glue' && p !== start && p !== breakpoints[b + 1]) {
@@ -522,12 +535,21 @@ export function positionItems(
         } else {
           gap = item.width + adjustmentRatio * item.stretch;
         }
+        if (options.includeGlue) {
+          result.push({
+            item: p,
+            line: b,
+            xOffset,
+            width: gap,
+          });
+        }
         xOffset += gap;
       } else if (item.type === 'penalty' && p === breakpoints[b + 1] && item.width > 0) {
         result.push({
           item: p,
           line: b,
           xOffset,
+          width: item.width,
         });
       }
     }
