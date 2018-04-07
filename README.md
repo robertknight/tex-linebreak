@@ -43,7 +43,7 @@ npm install tex-linebreak
 Then use the APIs to lay out and render text:
 
 ```js
-import { layoutItemsFromString, breakLines, positionBoxes } from 'tex-linebreak';
+import { layoutItemsFromString, breakLines, positionItems } from 'tex-linebreak';
 
 // Convert your text to a set of "box", "glue" and "penalty" items used by the
 // line-breaking process.
@@ -63,10 +63,10 @@ const lineWidth = 200;
 const breakpoints = breakLines(items, lineWidth)
 
 // Compute the (xOffset, line number) at which to draw each box item.
-const boxes = positionBoxes(items, lineWidth, breakpoints);
+const positionedItems = positionItems(items, lineWidth, breakpoints);
 
-boxes.forEach(box => {
-  const item = items[box.box];
+positionedItems.forEach(pi => {
+  const item = items[pi.item];
 
   // Add code to draw `item.text` at `(box.xOffset, box.line)` to whatever output
   // you want, eg. `<canvas>`, HTML elements with spacing created using CSS,
