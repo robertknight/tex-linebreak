@@ -3,6 +3,9 @@
  * to lay out a paragraph of justified text and render it into an HTML canvas.
  */
 
+import Hypher from 'hypher';
+import enUsPatterns from 'hyphenation.en-us';
+
 import {
   layoutItemsFromString,
   layoutParagraph,
@@ -13,6 +16,37 @@ import {
   MAX_COST,
   MIN_COST,
 } from '../layout';
+
+const hyphenator = new Hypher(enUsPatterns);
+
+/**
+ * Lay out text and return the positons at which to draw each word.
+ */
+function layoutText(
+  text: string,
+  lineWidth: number | number[],
+  measure: (word: string) => number,
+  hyphenate: (word: string) => string[],
+) {
+  let items: TextInputItem[];
+  let positions: PositionedItem[];
+
+  try {
+    items = layoutItemsFromString(text, measure);
+    positions = layoutParagraph(items, lineWidth, {
+      maxAdjustmentRatio: 1,
+    });
+  } catch (e) {
+    if (e instanceof MaxAdjustmentExceededError) {
+      items = layoutItemsFromString(text, w => ctx.measureText(w).width, hyphenate);
+      positions = layoutParagraph(items, lineWidth);
+    } else {
+      throw e;
+    }
+  }
+
+  return { items, positions };
+}
 
 /**
  * Render a string as justified text into a `<canvas>`.
@@ -26,18 +60,20 @@ function renderText(c: HTMLCanvasElement, t: string) {
   const lineWidth = c.width / window.devicePixelRatio - leftMargin - rightMargin;
 
   // Generate boxes, glues and penalties from input string.
-  const items = layoutItemsFromString(t, w => ctx.measureText(w).width);
-
-  // Layout paragraph.
-  const boxPositions = layoutParagraph(items, lineWidth);
+  const { items, positions } = layoutText(
+    t,
+    lineWidth,
+    w => ctx.measureText(w).width,
+    w => hyphenator.hyphenate(w),
+  );
 
   // Render each line.
   const lineSpacing = 30;
-  boxPositions.forEach(bp => {
-    const yOffset = (bp.line + 1) * lineSpacing;
-    const item = items[bp.item];
+  positions.forEach(p => {
+    const yOffset = (p.line + 1) * lineSpacing;
+    const item = items[p.item];
     const text = item.type === 'box' ? (item as TextBox).text : '-';
-    let xOffset = leftMargin + bp.xOffset;
+    let xOffset = leftMargin + p.xOffset;
     ctx.fillText(text, xOffset, yOffset);
   });
 }
@@ -54,31 +90,12 @@ function renderSpans(el: HTMLElement, t: string) {
   const lineWidth = parseFloat(width!);
   ctx.font = `${fontSize} ${fontFamily}`;
 
-  // Layout text.
-  let items: TextInputItem[];
-  let boxPositions: PositionedItem[];
-
-  try {
-    items = layoutItemsFromString(t, w => ctx.measureText(w).width);
-    boxPositions = layoutParagraph(items, lineWidth, {
-      maxAdjustmentRatio: 1,
-    });
-  } catch (e) {
-    console.log('Retrying with hyphenation');
-    if (e instanceof MaxAdjustmentExceededError) {
-      const hyphenate = (word: string) => {
-        const chunks = [];
-        for (let i = 0; i < word.length; i += 3) {
-          chunks.push(word.slice(i, i + 3));
-        }
-        return chunks;
-      };
-      items = layoutItemsFromString(t, w => ctx.measureText(w).width, hyphenate);
-      boxPositions = layoutParagraph(items, lineWidth);
-    } else {
-      throw e;
-    }
-  }
+  const { items, positions } = layoutText(
+    t,
+    lineWidth,
+    w => ctx.measureText(w).width,
+    w => hyphenator.hyphenate(w),
+  );
 
   // Generate `<div>` and `<span>` elements.
   const addLine = () => {
@@ -91,8 +108,8 @@ function renderSpans(el: HTMLElement, t: string) {
   let prevXOffset = 0;
   let lineEl = addLine();
 
-  boxPositions.forEach((bp, i) => {
-    const isNewLine = i > 0 && bp.line !== boxPositions[i - 1].line;
+  positions.forEach((p, i) => {
+    const isNewLine = i > 0 && p.line !== positions[i - 1].line;
     if (isNewLine) {
       // In theory we could use `<br>` elements to insert line breaks, but in
       // testing this resulted in Firefox and Chrome inserting an extra break
@@ -102,14 +119,14 @@ function renderSpans(el: HTMLElement, t: string) {
       prevXOffset = 0;
     }
     const span = document.createElement('span');
-    const item = items[bp.item];
+    const item = items[p.item];
     if (item.type === 'box') {
       span.textContent = (item as TextBox).text;
     } else if (item.type === 'penalty') {
       span.textContent = '-';
     }
-    span.style.marginLeft = `${bp.xOffset - prevXOffset}px`;
-    prevXOffset = bp.xOffset + item.width;
+    span.style.marginLeft = `${p.xOffset - prevXOffset}px`;
+    prevXOffset = p.xOffset + item.width;
     lineEl.appendChild(span);
   });
 }
