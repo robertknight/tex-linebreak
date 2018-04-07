@@ -43,5 +43,13 @@
 }
 
 .css-output-p {
+  /**
+   * Enable hyphenation where supported. See https://caniuse.com/#feat=css-hyphens
+   *
+   * As of 2018-04-07, Chrome's "auto" implementation is limited to macOS and Android.
+   * See https://bugs.chromium.org/p/chromium/issues/detail?id=652964 and
+   * https://chromium.googlesource.com/chromium/src/+/ed7e106e0e48b3afb160a5bdbb37649e307d2b05
+   */
+  hyphens: auto;
   text-align: justify;
 }
