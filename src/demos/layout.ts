@@ -38,7 +38,7 @@ function layoutText(
     });
   } catch (e) {
     if (e instanceof MaxAdjustmentExceededError) {
-      items = layoutItemsFromString(text, w => ctx.measureText(w).width, hyphenate);
+      items = layoutItemsFromString(text, measure, hyphenate);
       positions = layoutParagraph(items, lineWidth);
     } else {
       throw e;
