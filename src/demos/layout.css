@@ -1,3 +1,11 @@
+:root {
+  --line-width: 300px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 .input {
   font-family: sans-serif;
   font-size: 13pt;
@@ -15,12 +23,13 @@
   margin-top: 10px;
   margin-left: 30px;
   margin-right: 30px;
+  overflow: hidden;
 }
 
 .output-p {
   font-family: sans-serif;
   font-size: 13pt;
-  width: 460px;
+  width: calc(var(--line-width) + 40px);
   height: 800px;
   border: 1px solid #aaa;
   margin-top: 10px;
@@ -30,6 +39,7 @@
   padding-right: 20px;
   padding-top: 10px;
   line-height: 30px;
+  overflow: hidden;
 }
 
 .css-output-p {

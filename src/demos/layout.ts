@@ -51,12 +51,12 @@ function layoutText(
 /**
  * Render a string as justified text into a `<canvas>`.
  */
-function renderText(c: HTMLCanvasElement, t: string) {
+function renderToCanvas(c: HTMLCanvasElement, t: string, margins: { left: number; right: number }) {
   const ctx = canvas.getContext('2d')!;
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  const leftMargin = 20;
-  const rightMargin = 20;
+  const leftMargin = margins.left;
+  const rightMargin = margins.right;
   const lineWidth = c.width / window.devicePixelRatio - leftMargin - rightMargin;
 
   // Generate boxes, glues and penalties from input string.
@@ -80,14 +80,17 @@ function renderText(c: HTMLCanvasElement, t: string) {
 
 /**
  * Render a string as justified text using `<span>` and `<br>` elements.
+ *
+ * @param el - The container element. This is assumed to be using `box-sizing:
+ * border`.
  */
-function renderSpans(el: HTMLElement, t: string) {
+function renderToHTML(el: HTMLElement, t: string) {
   // Clear element and measure font.
   el.innerHTML = '';
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
   const { fontSize, fontFamily, width, paddingLeft, paddingRight } = window.getComputedStyle(el);
-  const lineWidth = parseFloat(width!);
+  const lineWidth = parseFloat(width!) - parseFloat(paddingLeft!) - parseFloat(paddingRight!);
   ctx.font = `${fontSize} ${fontFamily}`;
 
   const { items, positions } = layoutText(
@@ -133,24 +136,41 @@ function renderSpans(el: HTMLElement, t: string) {
 
 const textarea = document.querySelector('textarea')!;
 const canvas = document.querySelector('canvas')!;
+const lineWidthInput = document.querySelector('.js-line-width')! as HTMLInputElement;
 const para = document.querySelector('.output-p')! as HTMLElement;
 const cssPara = document.querySelector('.css-output-p')! as HTMLElement;
 
-// Setup canvas for high DPI displays.
-const ctx = canvas.getContext('2d')!;
-canvas.style.width = canvas.width + 'px';
-canvas.style.height = canvas.height + 'px';
-canvas.width *= window.devicePixelRatio;
-canvas.height *= window.devicePixelRatio;
-ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+/**
+ * Set the size of a canvas, adjusting for high-DPI displays.
+ */
+function setCanvasSize(canvas: HTMLCanvasElement, width: number, height: number) {
+  const ctx = canvas.getContext('2d')!;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  canvas.width = width * window.devicePixelRatio;
+  canvas.height = height * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+
+function rerender() {
+  const lineWidth = parseInt(lineWidthInput.value);
+  const paraStyle = window.getComputedStyle(para);
+  const padding = {
+    left: parseInt(paraStyle.paddingLeft!),
+    right: parseInt(paraStyle.paddingRight!),
+  };
+  document.body.style.setProperty('--line-width', `${lineWidth}px`);
+  setCanvasSize(canvas, lineWidth + padding.left + padding.right, 500);
+
+  canvas.getContext('2d')!.font = '13pt sans serif';
+  renderToCanvas(canvas, textarea.value, padding);
+
+  renderToHTML(para, textarea.value);
+
+  cssPara.textContent = textarea.value;
+}
 
 // Render text and re-render on changes.
-ctx.font = '13pt sans-serif';
-textarea.addEventListener('input', () => {
-  renderText(canvas, textarea.value);
-  renderSpans(para, textarea.value);
-  cssPara.textContent = textarea.value;
-});
-renderText(canvas, textarea.value);
-renderSpans(para, textarea.value);
-cssPara.textContent = textarea.value;
+textarea.addEventListener('input', rerender);
+lineWidthInput.addEventListener('input', rerender);
+rerender();
