@@ -1,9 +1,13 @@
 import { assert } from 'chai';
+import Hypher from 'hypher';
+import enUsPatterns from 'hyphenation.en-us';
 
 import { forcedBreak } from '../src/layout';
-import { layoutItemsFromString, TextBox } from '../src/helpers';
+import { layoutItemsFromString, layoutText, TextBox } from '../src/helpers';
 
-import { box, glue, penalty } from './util';
+import { box, glue, lineStrings, penalty } from './util';
+
+const hyphenator = new Hypher(enUsPatterns);
 
 describe('helpers', () => {
   describe('layoutItemsFromString', () => {
@@ -69,6 +73,31 @@ describe('helpers', () => {
         glue(0, 0, 1000),
         forcedBreak(),
       ]);
+    });
+  });
+
+  describe('layoutText', () => {
+    it('lays out lines applying hyphenation', () => {
+      const text = `When the first paper volume of Donald Knuth's The Art of Computer Programming was published in 1968,[4] it was typeset using hot metal typesetting set by a Monotype Corporation typecaster. This method, dating back to the 19th century, produced a "good classic style" appreciated by Knuth.`;
+      const measure = (w: string) => w.length * 5;
+      const hyphenate = (w: string) => hyphenator.hyphenate(w);
+
+      const { items, breakpoints } = layoutText(text, 150, measure, hyphenate);
+      const lines = lineStrings(items, breakpoints);
+
+      const expectedLines = [
+        'When the first paper volume',
+        "of Donald Knuth's The Art of",
+        'Computer Programming was pub-',
+        'lished in 1968,[4] it was type-',
+        'set using hot metal typesetting',
+        'set by a Monotype Corporation',
+        'typecaster. This method, dat-',
+        'ing back to the 19th century,',
+        'produced a "good classic style"',
+        'appreciated by Knuth.',
+      ];
+      assert.deepEqual(lines, expectedLines);
     });
   });
 });

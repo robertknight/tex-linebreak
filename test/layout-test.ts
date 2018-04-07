@@ -20,7 +20,7 @@ import {
 
 import { layoutItemsFromString, TextBox, TextInputItem } from '../src/helpers';
 
-import { box, glue, penalty } from './util';
+import { box, chunk, glue, lineStrings, penalty } from './util';
 
 interface LayoutFixture {
   /** Input text of paragraph. */
@@ -96,14 +96,6 @@ function writeLayoutFixture(path: string, f: LayoutFixture) {
   writeFileSync(path, content);
 }
 
-function chunk<T>(arr: T[], width: number) {
-  let chunks: T[][] = [];
-  for (let i = 0; i <= arr.length - width; i++) {
-    chunks.push(arr.slice(i, i + width));
-  }
-  return chunks;
-}
-
 function repeat<T>(arr: T[], count: number) {
   let result = [];
   while (count) {
@@ -127,27 +119,6 @@ function itemsFromString(s: string, charWidth: number, glueStretch: number): Tex
   items.push({ type: 'glue', width: 0, shrink: 0, stretch: 1000 });
   items.push(forcedBreak());
   return items;
-}
-
-function itemString(item: TextInputItem) {
-  switch (item.type) {
-    case 'box':
-      return item.text;
-    case 'glue':
-      return ' ';
-    case 'penalty':
-      return item.flagged ? '-' : '';
-  }
-}
-
-function lineStrings(items: TextInputItem[], breakpoints: number[]): string[] {
-  const pieces = items.map(itemString);
-  return chunk(breakpoints, 2).map(([a, b]) =>
-    pieces
-      .slice(a, b)
-      .join('')
-      .trim(),
-  );
 }
 
 describe('layout', () => {
@@ -268,13 +239,7 @@ describe('layout', () => {
       let lines = lineStrings(items, breakpoints);
       assert.deepEqual(
         lines,
-        [
-          // FIXME - The hyphen should appear at the end of the line, not the
-          // start.
-          'one two long',
-          '-word one long',
-          '-word',
-        ],
+        ['one two long-', 'word one long-', 'word'],
         'did not break as expected without penalty',
       );
 
@@ -285,7 +250,7 @@ describe('layout', () => {
       lines = lineStrings(items, breakpoints);
       assert.deepEqual(
         lines,
-        ['one two', 'long-word one', 'long-word'],
+        ['one two', 'longword one', 'longword'],
         'did not break as expected with penalty',
       );
     });

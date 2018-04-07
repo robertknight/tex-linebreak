@@ -6,49 +6,9 @@
 import Hypher from 'hypher';
 import enUsPatterns from 'hyphenation.en-us';
 
-import {
-  breakLines,
-  positionItems,
-  MaxAdjustmentExceededError,
-  PositionedItem,
-  MAX_COST,
-  MIN_COST,
-} from '../layout';
-
-import { layoutItemsFromString, TextBox, TextInputItem } from '../helpers';
+import { layoutText, TextBox } from '../helpers';
 
 const hyphenator = new Hypher(enUsPatterns);
-
-/**
- * Lay out text and return the positons at which to draw each word.
- */
-function layoutText(
-  text: string,
-  lineWidth: number | number[],
-  measure: (word: string) => number,
-  hyphenate: (word: string) => string[],
-) {
-  let items: TextInputItem[];
-  let positions: PositionedItem[];
-
-  try {
-    items = layoutItemsFromString(text, measure);
-    const breakpoints = breakLines(items, lineWidth, {
-      maxAdjustmentRatio: 1,
-    });
-    positions = positionItems(items, lineWidth, breakpoints);
-  } catch (e) {
-    if (e instanceof MaxAdjustmentExceededError) {
-      items = layoutItemsFromString(text, measure, hyphenate);
-      const breakpoints = breakLines(items, lineWidth);
-      positions = positionItems(items, lineWidth, breakpoints);
-    } else {
-      throw e;
-    }
-  }
-
-  return { items, positions };
-}
 
 /**
  * Render a string as justified text into a `<canvas>`.
