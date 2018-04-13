@@ -16,7 +16,7 @@ import {
   Penalty,
 } from '../src/layout';
 
-import { layoutItemsFromString, TextBox, TextInputItem } from '../src/helpers';
+import { layoutItemsFromString, TextBox, TextGlue, TextInputItem } from '../src/helpers';
 
 import { box, chunk, glue, lineStrings, penalty } from './util';
 
@@ -98,14 +98,14 @@ function itemsFromString(s: string, charWidth: number, glueStretch: number): Tex
   const items = s.split(/(\s+|-)/).map(substr => {
     const width = substr.length * charWidth;
     if (substr.match(/^\s+$/)) {
-      return { type: 'glue', width, shrink: 2, stretch: glueStretch } as Glue;
+      return { type: 'glue', width, shrink: 2, stretch: glueStretch, text: substr } as TextGlue;
     } else if (substr === '-') {
       return { type: 'penalty', width, flagged: true, cost: 5 } as Penalty;
     } else {
       return { type: 'box', width, text: substr } as TextBox;
     }
   });
-  items.push({ type: 'glue', width: 0, shrink: 0, stretch: 1000 });
+  items.push({ type: 'glue', width: 0, shrink: 0, stretch: 1000, text: '' });
   items.push(forcedBreak());
   return items;
 }
@@ -156,7 +156,7 @@ describe('layout', () => {
       const measure = (text: string) => text.length * 5;
       const items = layoutItemsFromString('one fine day in the middle of the night', measure);
       const breakpoints = breakLines(items, 100);
-      assert.deepEqual(breakpoints, [0, 9, 19]);
+      assert.deepEqual(breakpoints, [0, 9, 18]);
     });
 
     it('succeeds when min adjustment ratio is exceeded', () => {
@@ -321,16 +321,19 @@ describe('layout', () => {
           item: 0,
           line: 0,
           xOffset: 0,
+          width: 10,
         },
         {
           item: 2,
           line: 0,
           xOffset: 25,
+          width: 10,
         },
         {
           item: 4,
           line: 1,
           xOffset: 0,
+          width: 10,
         },
       ]);
     });
@@ -347,11 +350,13 @@ describe('layout', () => {
           item: 0,
           line: 0,
           xOffset: 0,
+          width: 10,
         },
         {
           item: 2,
           line: 0,
           xOffset: 15,
+          width: 100,
         },
       ]);
     });

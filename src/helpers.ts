@@ -10,14 +10,15 @@ import {
   forcedBreak,
 } from './layout';
 
-/**
- * A box which also carries around with it some associated text.
- */
 export interface TextBox extends Box {
   text: string;
 }
 
-export type TextInputItem = TextBox | Glue | Penalty;
+export interface TextGlue extends Glue {
+  text: string;
+}
+
+export type TextInputItem = TextBox | TextGlue | Penalty;
 
 /**
  * A convenience function that generates a set of input items for `breakLines`
@@ -35,15 +36,22 @@ export function layoutItemsFromString(
   hyphenateFn?: (word: string) => string[],
 ): TextInputItem[] {
   const items: TextInputItem[] = [];
-  const words = s.split(/\s+/).filter(w => w.length > 0);
+  const chunks = s.split(/(\s+)/).filter(w => w.length > 0);
 
   // Here we assume that every space has the same default size. Callers who want
   // more flexibility can use the lower-level functions.
   const spaceWidth = measureFn(' ');
   const hyphenWidth = measureFn('-');
+  const isSpace = (word: string) => /\s/.test(word.charAt(0));
 
   const shrink = Math.max(0, spaceWidth - 2);
-  words.forEach(w => {
+  chunks.forEach(w => {
+    if (isSpace(w)) {
+      const g: TextGlue = { type: 'glue', width: spaceWidth, shrink, stretch: spaceWidth * 1.5, text: w };
+      items.push(g);
+      return;
+    }
+
     if (hyphenateFn) {
       const chunks = hyphenateFn(w);
       chunks.forEach((c, i) => {
@@ -58,11 +66,9 @@ export function layoutItemsFromString(
       const b: TextBox = { type: 'box', width: measureFn(w), text: w };
       items.push(b);
     }
-    const g: Glue = { type: 'glue', width: spaceWidth, shrink, stretch: spaceWidth * 1.5 };
-    items.push(g);
   });
   // Add "finishing glue" to space out final line.
-  items.push({ type: 'glue', width: 0, stretch: MAX_COST, shrink: 0 });
+  items.push({ type: 'glue', width: 0, stretch: MAX_COST, shrink: 0, text: '' });
   items.push(forcedBreak());
 
   return items;
