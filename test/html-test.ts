@@ -13,6 +13,13 @@ function stripSpacing(el: HTMLElement) {
   spans.forEach(s => s.style.wordSpacing = null);
 }
 
+function trimLineSpans(spans: HTMLElement[]) {
+  spans.forEach(span => {
+    const text = span.childNodes[0];
+    text.nodeValue = text.nodeValue!.trim();
+  });
+}
+
 describe('html', () => {
   describe('justifyContent', () => {
     let para: HTMLParagraphElement;
@@ -47,10 +54,7 @@ describe('html', () => {
       // Strip trailing space from each line which is not visible and not
       // accounted for when justifying the text, but does count towards the
       // width reported by `getBoundingClientRect`.
-      spans.forEach(span => {
-        const text = span.childNodes[0];
-        text.nodeValue = text.nodeValue!.trim();
-      });
+      trimLineSpans(spans);
       const lineWidths = spans.map(s => s.getBoundingClientRect().width);
 
       // Check that every line is the expected width.
@@ -133,6 +137,37 @@ describe('html', () => {
       justifyContent(para);
 
       assert.equal(para.innerHTML, initialHtml);
+    });
+
+    [
+      'marginLeft',
+      'borderLeftWidth',
+      'paddingLeft',
+      'paddingRight',
+      'borderRightWidth',
+      'marginRight',
+    ].forEach(property => {
+      it(`accounts for '${property}' property on inline children`, () => {
+        para.innerHTML = 'test with <b>inline child</b> and some other text';
+        justifyContent(para);
+        const linesBefore = extractLines(para);
+
+        const inlineEl = para.querySelector('b')!;
+        inlineEl.style[property as any] = '10px';
+        if (property.startsWith('border')) {
+          inlineEl.style.borderStyle = 'solid';
+        }
+        justifyContent(para);
+        const linesAfter = extractLines(para);
+
+        // Check that the line breaking changes before and after adding a
+        // margin/border/padding to the inline element.
+        //
+        // Ideally we should check whether the _visible content_ is the same
+        // width on each line. That is a bit fiddly at present because some
+        // lines may actually be longer but end with invisible whitespace.
+        assert.notDeepEqual(linesBefore, linesAfter);
+      });
     });
   });
 });

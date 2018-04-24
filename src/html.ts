@@ -158,9 +158,35 @@ function itemsFromNode(
 
       items.push(...nodeItems);
     } else if (child instanceof Element) {
-      const { display, width } = getComputedStyle(child);
+      const {
+        display,
+        width,
+        paddingLeft,
+        paddingRight,
+        marginLeft,
+        marginRight,
+        borderLeftWidth,
+        borderRightWidth,
+      } = getComputedStyle(child);
+
       if (display === 'inline') {
+        // Add box for margin/border/padding at start of box.
+        const leftMargin =
+          parseFloat(marginLeft!) + parseFloat(borderLeftWidth!) + parseFloat(paddingLeft!);
+        if (leftMargin > 0) {
+          items.push({ type: 'box', width: leftMargin, node: child, start: 0, end: 0 });
+        }
+
+        // Add items for child nodes.
         items.push(...itemsFromNode(child, hyphenateFn, false));
+
+        // Add box for margin/border/padding at end of box.
+        const rightMargin =
+          parseFloat(marginRight!) + parseFloat(borderRightWidth!) + parseFloat(paddingRight!);
+        if (rightMargin > 0) {
+          const length = child.childNodes.length;
+          items.push({ type: 'box', width: rightMargin, node: child, start: length, end: length });
+        }
       } else {
         // Treat this item as an opaque box.
         items.push({
