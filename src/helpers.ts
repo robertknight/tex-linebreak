@@ -47,7 +47,13 @@ export function layoutItemsFromString(
   const shrink = Math.max(0, spaceWidth - 2);
   chunks.forEach(w => {
     if (isSpace(w)) {
-      const g: TextGlue = { type: 'glue', width: spaceWidth, shrink, stretch: spaceWidth * 1.5, text: w };
+      const g: TextGlue = {
+        type: 'glue',
+        width: spaceWidth,
+        shrink,
+        stretch: spaceWidth * 1.5,
+        text: w,
+      };
       items.push(g);
       return;
     }
