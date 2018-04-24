@@ -1,5 +1,3 @@
-import { readFileSync, writeFileSync } from 'fs';
-
 import { assert } from 'chai';
 import xorShift from 'xorshift';
 
@@ -21,6 +19,8 @@ import {
 import { layoutItemsFromString, TextBox, TextInputItem } from '../src/helpers';
 
 import { box, chunk, glue, lineStrings, penalty } from './util';
+
+import fixture from './fixtures/layout';
 
 interface LayoutFixture {
   /** Input text of paragraph. */
@@ -57,13 +57,12 @@ interface LayoutFixture {
  * ...
  * ```
  */
-function readLayoutFixture(path: string): LayoutFixture {
+function readLayoutFixture(content: string): LayoutFixture {
   const defaultSettings = {
     charWidth: 5,
     maxAdjustmentRatio: 1,
   };
 
-  const content = readFileSync(path, { encoding: 'utf8' }).trim();
   const sections = content.split('\n\n');
   const input = sections[0];
   const outputs = [];
@@ -84,16 +83,6 @@ function readLayoutFixture(path: string): LayoutFixture {
     input,
     outputs,
   };
-}
-
-/**
- * Write a layout fixture in the same format used by `readLayoutFixture`.
- */
-function writeLayoutFixture(path: string, f: LayoutFixture) {
-  const content = [f.input].concat(
-    ...f.outputs.map(o => [JSON.stringify(o.layoutOptions), o.lines.join('\n')]),
-  );
-  writeFileSync(path, content);
 }
 
 function repeat<T>(arr: T[], count: number) {
@@ -134,7 +123,7 @@ describe('layout', () => {
     });
 
     it('generates expected layout', () => {
-      const f = readLayoutFixture(`${__dirname}/fixtures/layout.txt`);
+      const f = readLayoutFixture(fixture);
       f.outputs.forEach(({ lines, layoutOptions }) => {
         const measure = (text: string) => text.length * 5;
         const items = layoutItemsFromString(f.input, measure);
