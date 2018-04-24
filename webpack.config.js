@@ -1,7 +1,10 @@
 const path = require('path');
 
 module.exports = {
-  entry: './src/demos/layout.ts',
+  entry: {
+    demos: './src/demos/layout.ts',
+    lib: './src',
+  },
   devtool: 'inline-source-map',
   module: {
     rules: [{
@@ -14,7 +17,10 @@ module.exports = {
     extensions: ['.ts'],
   },
   output: {
-    filename: 'app.js',
+    filename: '[name].js',
     path: path.resolve(__dirname, 'dist'),
+
+    libraryTarget: 'var',
+    library: 'texLineBreak',
   },
 };
