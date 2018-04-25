@@ -5,7 +5,7 @@ module.exports = {
     demos: './src/demos/layout.ts',
     lib: './src',
   },
-  devtool: 'inline-source-map',
+  devtool: 'cheap-source-map',
   module: {
     rules: [{
       test: /\.ts$/,
@@ -20,7 +20,13 @@ module.exports = {
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist'),
 
-    libraryTarget: 'var',
+    // Build a UMD bundle that can be used from a `<script>` tag, or imported
+    // into a CommonJS / ESM environment.
+    libraryTarget: 'umd',
     library: 'texLineBreak',
+
+    // Make the UMD bundle usable in Node.
+    // See https://github.com/webpack/webpack/issues/6522
+    globalObject: "typeof self !== 'undefined' ? self : this",
   },
 };

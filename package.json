@@ -1,7 +1,7 @@
 {
   "name": "tex-linebreak",
   "version": "0.1.0",
-  "main": "dist/src/index.js",
+  "main": "dist/lib.js",
   "license": "MIT",
   "author": {
     "name": "Robert Knight",
@@ -33,15 +33,17 @@
     "xorshift": "^1.1.1"
   },
   "files": [
-    "dist/src/"
+    "dist/lib.js",
+    "dist/lib.js.map"
   ],
   "scripts": {
-    "build": "tsc",
-    "build-demos": "webpack --mode development",
+    "build-prod": "webpack --mode production",
+    "build-dev": "webpack --mode development",
     "format": "prettier --write src/*.ts src/**/*.ts test/**/*.ts",
-    "watch": "webpack --watch --mode development",
+    "prepublish": "yarn build-prod",
     "test": "karma start --single-run",
-    "test-watch": "karma start --auto-watch"
+    "test-watch": "karma start --auto-watch",
+    "watch": "webpack --watch --mode development"
   },
   "dependencies": {
     "error-subclass": "^2.2.0"
