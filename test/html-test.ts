@@ -23,16 +23,24 @@ function trimLineSpans(spans: HTMLElement[]) {
 describe('html', () => {
   describe('justifyContent', () => {
     let para: HTMLParagraphElement;
+    let cleanupEls: HTMLElement[];
 
-    beforeEach(() => {
-      para = document.createElement('p');
-      para.innerHTML = 'This is some test content that should be wrapped';
+    function createParagraph(html: string) {
+      const para = document.createElement('p');
+      para.innerHTML = html;
       para.style.width = '100px';
       document.body.appendChild(para);
+      cleanupEls.push(para);
+      return para;
+    }
+
+    beforeEach(() => {
+      cleanupEls = [];
+      para = createParagraph('This is some test content that should be wrapped');
     });
 
     afterEach(() => {
-      para.remove();
+      cleanupEls.forEach(el => el.remove());
     });
 
     it('adds line breaks to existing text', () => {
@@ -168,6 +176,19 @@ describe('html', () => {
         // lines may actually be longer but end with invisible whitespace.
         assert.notDeepEqual(linesBefore, linesAfter);
       });
+    });
+
+    it('justifies multiple paragraphs', () => {
+      const text = 'test that multiple paragraphs are justified';
+      const p1 = createParagraph(text);
+      const p2 = createParagraph(text);
+
+      justifyContent([p1, p2]);
+
+      const lines1 = extractLines(p1);
+      const lines2 = extractLines(p2);
+      assert.deepEqual(lines1, ['test that', 'multiple paragraphs', 'are justified']);
+      assert.deepEqual(lines1, lines2);
     });
   });
 });
