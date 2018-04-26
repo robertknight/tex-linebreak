@@ -10,7 +10,7 @@ import {
 } from './layout';
 import { textNodesInRange } from './range';
 
-const ELEMENT_TAG = 'insertedByTexLinebreak';
+const NODE_TAG = 'insertedByTexLinebreak';
 
 /**
  * Render a string as justified text using HTML elements for spacing.
@@ -257,33 +257,32 @@ function lineWidthsAndGlueCounts(items: InputItem[], breakpoints: number[]) {
 }
 
 /**
- * Mark an element as having been created by `justifyContent`.
+ * Mark a node as having been created by `justifyContent`.
  */
-function tagElement(el: Element) {
-  (el as any)[ELEMENT_TAG] = true;
+function tagNode(node: Node) {
+  (node as any)[NODE_TAG] = true;
 }
 
 /**
- * Return `true` if `el` was created by `justifyContent`.
+ * Return `true` if `node` was created by `justifyContent`.
  */
-function isTaggedElement(el: Element) {
-  return el.hasOwnProperty(ELEMENT_TAG);
+function isTaggedNode(node: Node) {
+  return node.hasOwnProperty(NODE_TAG);
 }
 
 /**
- * Return all descendants of `el` created by `justifyContent`.
+ * Return all descendants of `node` created by `justifyContent`.
  */
-function taggedChildren(el: Element): Element[] {
+function taggedChildren(node: Node): Node[] {
   const children = [];
-  for (let i = 0; i < el.childNodes.length; i++) {
-    const child = el.childNodes[i];
-    if (child.nodeType !== Node.ELEMENT_NODE) {
-      continue;
+  for (let i = 0; i < node.childNodes.length; i++) {
+    const child = node.childNodes[i];
+    if (isTaggedNode(child)) {
+      children.push(child);
     }
-    if (isTaggedElement(child as Element)) {
-      children.push(child as Element);
+    if (child.childNodes.length > 0) {
+      children.push(...taggedChildren(child));
     }
-    children.push(...taggedChildren(child as Element));
   }
   return children;
 }
@@ -299,7 +298,7 @@ function addWordSpacing(r: Range, wordSpacing: number) {
 
   for (let t of texts) {
     const wrapper = document.createElement('span');
-    tagElement(wrapper);
+    tagNode(wrapper);
     wrapper.style.wordSpacing = `${wordSpacing}px`;
     t.parentNode!.replaceChild(wrapper, t);
     wrapper.appendChild(t);
@@ -314,13 +313,13 @@ function addWordSpacing(r: Range, wordSpacing: number) {
 export function unjustifyContent(el: HTMLElement) {
   // Find and remove all elements inserted by `justifyContent`.
   const tagged = taggedChildren(el);
-  for (let el of tagged) {
-    if (el.tagName === 'BR') {
-      el.remove();
-    } else if (el.tagName === 'SPAN' && el.childNodes.length > 0) {
-      const child = el.childNodes[0];
-      el.parentNode!.replaceChild(child, el);
-    }
+  for (let node of tagged) {
+    const parent = node.parentNode!;
+    const children = Array.from(node.childNodes);
+    children.forEach(child => {
+      parent.insertBefore(child, node);
+    });
+    parent.removeChild(node);
   }
 
   // Re-join text nodes that were split by `justifyContent`.
@@ -419,7 +418,7 @@ export function justifyContent(
         return;
       }
       const brEl = document.createElement('br');
-      tagElement(brEl);
+      tagNode(brEl);
 
       // Insert linebreak. The browser will automatically adjust subsequent
       // ranges.
@@ -443,7 +442,10 @@ export function justifyContent(
 
       const wrappedNodes = addWordSpacing(r, extraSpacePerGlue);
       if (endsWithHyphen[i] && wrappedNodes.length > 0) {
-        wrappedNodes[wrappedNodes.length - 1].nodeValue += '-';
+        const lastNode = wrappedNodes[wrappedNodes.length - 1];
+        const hyphen = document.createTextNode('-');
+        tagNode(hyphen);
+        lastNode.parentNode!.appendChild(hyphen);
       }
     });
   });

@@ -1,6 +1,10 @@
 import { assert } from 'chai';
+import enUsPatterns from 'hyphenation.en-us';
 
 import { justifyContent } from '../src/html';
+import { createHyphenator } from '../src/hyphenate';
+
+const hyphenate = createHyphenator(enUsPatterns);
 
 function extractLines(el: HTMLElement) {
   const tmpEl = document.createElement('span');
@@ -96,6 +100,18 @@ describe('html', () => {
       const secondResult = para.innerHTML;
 
       assert.equal(firstResult, secondResult);
+    });
+
+    it('removes existing hyphens that are no longer needed when re-justifying text', () => {
+      const text = 'Content with longwords thatdefinitely needshyphenation';
+      para.textContent = text;
+
+      justifyContent(para, hyphenate);
+      assert.notEqual(para.textContent, text, 'did not insert hyphens');
+
+      para.style.width = '400px';
+      justifyContent(para, hyphenate);
+      assert.equal(para.textContent, text, 'did not remove hyphens');
     });
 
     it('justifies rich text', () => {
