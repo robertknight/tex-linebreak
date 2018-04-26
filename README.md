@@ -64,8 +64,8 @@ npm install tex-linebreak
 ```
 
 The library has low-level APIs which implement the core line-breaking and
-positioning algorithm, as well as higher-level APIs that are convenient to use
-when laying out text.
+positioning algorithm, as well as higher-level APIs that provide a convenient
+way to justify existing HTML content.
 
 ### Low-level APIs
 
@@ -109,18 +109,42 @@ positionedItems.forEach(pi => {
 
 ### High-level APIs
 
-The high-level APIs provide convenience methods for laying out text into lines,
-as well as using hyphenation if necessary. _tex-linebreak_ does not provide
-hyphenation of words itself, but you can use an existing package such as
-[hypher](https://github.com/bramstein/hypher).
+The high-level APIs provide convenience methods for justifying content in
+existing HTML elements and laying out justified lines for rendering to HTML,
+canvas or other outputs. This includes support for hyphenation using the
+[hypher](https://github.com/bramstein/hypher) library.
+
+#### Justifying existing HTML content
+
+The contents of an existing HTML element can be justified using the
+`justifyContent` function.
 
 ```js
-import { layoutText } from 'tex-linebreak';
+import enUsPatterns from 'hyphenation.en-us';
+import { createHyphenator, justifyContent } from 'tex-linebreak';
 
-import Hypher from 'hypher';
+const hyphenate = createHyphenator(enUsPatterns);
+const paragraphs = Array.from(document.querySelectorAll('p'));
+justifyContent(paragraphs, hyphenate);
+```
+
+After an element is justified, its layout will remain fixed until `justifyContent`
+is called again. In order to re-justify content in response to window size
+changes or other events, your code will need to listen for the appropriate
+events and re-invoke `justifyContent`.
+
+#### Rendering text
+
+For rendering justified text into a variety of targets (HTML, canvas, SVG,
+WebGL etc.), the `layoutText` helper can be used to lay out justifed text and
+obtain the positions which each word should be drawn at.
+
+```js
+import { createHyphenator, layoutText } from 'tex-linebreak';
+
 import enUsPatterns from 'hyphenation.en-us';
 
-const hyphenate = word => hyphenator.hyphenate(word);
+const hyphenate = createHyphenator(enUsPatterns);
 const measure = word => word.length * 5;
 
 const { items, positions } = layoutText(text, lineWidth, measure, hyphenate);
