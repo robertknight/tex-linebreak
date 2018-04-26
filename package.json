@@ -33,8 +33,8 @@
     "xorshift": "^1.1.1"
   },
   "files": [
-    "dist/lib.js",
-    "dist/lib.js.map"
+    "dist/*.js",
+    "dist/*.js.map"
   ],
   "scripts": {
     "build-prod": "webpack --mode production",
