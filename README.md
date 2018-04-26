@@ -55,6 +55,20 @@ hyphenation and this library:
 _tex-linebreak_ has no dependencies on a particular JS environment (browser,
 Node) or render target (`<canvas>`, HTML elements, PDF).
 
+## Try it out
+
+The easiest way to see what the library can do is to [install the bookmarklet](
+src/demos/bookmarklet.js) and activate it on an existing web page, such as this
+[Medium article](https://medium.com/@parismarx/ubers-unrealistic-plan-for-flying-cars-6c9569d6fa8b).
+
+It will justify and apply hyphenation to the content of any paragraph (`<p>`)
+elements on the page. The difference is more beneficial on smaller screens,
+so try in your browser's responsive design mode.
+
+Note that the bookmarklet does not work on sites that use
+[Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+to restrict where scripts can be loaded from.
+
 ## Usage
 
 First, add the _tex-linebreak_ package to your dependencies:
