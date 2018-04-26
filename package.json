@@ -47,5 +47,8 @@
   },
   "dependencies": {
     "error-subclass": "^2.2.0"
+  },
+  "resolutions": {
+    "upath": "git+https://git@github.com/robertknight/upath.git#bcf302836d365cea630d9e2e009cef694534e7f2"
   }
 }

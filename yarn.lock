@@ -5845,9 +5845,9 @@ untildify@^3.0.2:
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/untildify/-/untildify-3.0.2.tgz#7f1f302055b3fea0f3e81dc78eb36766cb65e3f1"
 
-upath@^1.0.0:
+upath@^1.0.0, "upath@git+https://git@github.com/robertknight/upath.git#bcf302836d365cea630d9e2e009cef694534e7f2":
   version "1.0.4"
-  resolved "https://registry.yarnpkg.com/upath/-/upath-1.0.4.tgz#ee2321ba0a786c50973db043a50b7bcba822361d"
+  resolved "git+https://git@github.com/robertknight/upath.git#bcf302836d365cea630d9e2e009cef694534e7f2"
 
 uri-js@^3.0.2:
   version "3.0.2"
