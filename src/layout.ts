@@ -365,7 +365,7 @@ export function breakLines(
         // Try again with a higher threshold.
         return breakLines(items, lineLengths, {
           ...opts,
-          initialMaxAdjustmentRatio: minAdjustmentRatioAboveThreshold,
+          initialMaxAdjustmentRatio: minAdjustmentRatioAboveThreshold * 2,
         });
       } else {
         // We cannot create a breakpoint sequence by increasing the max
