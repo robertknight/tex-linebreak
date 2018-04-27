@@ -8,7 +8,7 @@ import {
   Glue,
   Penalty,
 } from './layout';
-import { textNodesInRange } from './range';
+import { textNodesInRange } from './util/range';
 import DOMTextMeasurer from './util/dom-text-measurer';
 
 const NODE_TAG = 'insertedByTexLinebreak';
