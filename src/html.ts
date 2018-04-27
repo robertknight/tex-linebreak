@@ -80,6 +80,82 @@ type DOMGlue = Glue & NodeOffset;
 type DOMPenalty = Penalty & NodeOffset;
 type DOMItem = DOMBox | DOMGlue | DOMPenalty;
 
+function itemsFromTextNode(
+  node: Text,
+  measureFn: (context: Element, word: string) => number,
+  hyphenateFn?: (word: string) => string[],
+) {
+  let textOffset = 0;
+  const nodeItems = layoutItemsFromString(
+    node.nodeValue!,
+    w => measureFn(node.parentNode! as Element, w),
+    hyphenateFn,
+  )
+    // Remove final glue and forced break.
+    .slice(0, -2)
+    // Annotate with DOM node metadata.
+    .map(it => {
+      const length = it.type === 'box' || it.type === 'glue' ? it.text.length : 0;
+      const nodeOffset = { node, start: textOffset, end: textOffset + length };
+      textOffset += length;
+      return { ...it, ...nodeOffset };
+    })
+    // Remove consecutive glue items.
+    .filter((it, i, ary) => {
+      const prevWasGlue = i > 0 && it.type === 'glue' && ary[i - 1].type === 'glue';
+      return !prevWasGlue;
+    });
+  return nodeItems;
+}
+
+function itemsFromElement(
+  element: Element,
+  measureFn: (context: Element, word: string) => number,
+  hyphenateFn?: (word: string) => string[],
+) {
+  const items: DOMItem[] = [];
+  const {
+    display,
+    width,
+    paddingLeft,
+    paddingRight,
+    marginLeft,
+    marginRight,
+    borderLeftWidth,
+    borderRightWidth,
+  } = getComputedStyle(element);
+
+  if (display === 'inline') {
+    // Add box for margin/border/padding at start of box.
+    const leftMargin =
+      parseFloat(marginLeft!) + parseFloat(borderLeftWidth!) + parseFloat(paddingLeft!);
+    if (leftMargin > 0) {
+      items.push({ type: 'box', width: leftMargin, node: element, start: 0, end: 0 });
+    }
+
+    // Add items for child nodes.
+    items.push(...itemsFromNode(element, measureFn, hyphenateFn, false));
+
+    // Add box for margin/border/padding at end of box.
+    const rightMargin =
+      parseFloat(marginRight!) + parseFloat(borderRightWidth!) + parseFloat(paddingRight!);
+    if (rightMargin > 0) {
+      const length = element.childNodes.length;
+      items.push({ type: 'box', width: rightMargin, node: element, start: length, end: length });
+    }
+  } else {
+    // Treat this item as an opaque box.
+    items.push({
+      type: 'box',
+      width: parseFloat(width!),
+      node: element,
+      start: 0,
+      end: 1,
+    });
+  }
+  return items;
+}
+
 /**
  * Create a list of input items for `breakLines` from a DOM node.
  */
@@ -94,68 +170,9 @@ function itemsFromNode(
 
   children.forEach(child => {
     if (child instanceof Text) {
-      let textOffset = 0;
-      const nodeItems = layoutItemsFromString(
-        child.nodeValue!,
-        w => measureFn(child.parentNode! as Element, w),
-        hyphenateFn,
-      )
-        // Remove final glue and forced break.
-        .slice(0, -2)
-        // Annotate with DOM node metadata.
-        .map(it => {
-          const length = it.type === 'box' || it.type === 'glue' ? it.text.length : 0;
-          const nodeOffset = { node: child, start: textOffset, end: textOffset + length };
-          textOffset += length;
-          return { ...it, ...nodeOffset };
-        })
-        // Remove consecutive glue items.
-        .filter((it, i, ary) => {
-          const prevWasGlue = i > 0 && it.type === 'glue' && ary[i - 1].type === 'glue';
-          return !prevWasGlue;
-        });
-
-      items.push(...nodeItems);
+      items.push(...itemsFromTextNode(child, measureFn, hyphenateFn));
     } else if (child instanceof Element) {
-      const {
-        display,
-        width,
-        paddingLeft,
-        paddingRight,
-        marginLeft,
-        marginRight,
-        borderLeftWidth,
-        borderRightWidth,
-      } = getComputedStyle(child);
-
-      if (display === 'inline') {
-        // Add box for margin/border/padding at start of box.
-        const leftMargin =
-          parseFloat(marginLeft!) + parseFloat(borderLeftWidth!) + parseFloat(paddingLeft!);
-        if (leftMargin > 0) {
-          items.push({ type: 'box', width: leftMargin, node: child, start: 0, end: 0 });
-        }
-
-        // Add items for child nodes.
-        items.push(...itemsFromNode(child, measureFn, hyphenateFn, false));
-
-        // Add box for margin/border/padding at end of box.
-        const rightMargin =
-          parseFloat(marginRight!) + parseFloat(borderRightWidth!) + parseFloat(paddingRight!);
-        if (rightMargin > 0) {
-          const length = child.childNodes.length;
-          items.push({ type: 'box', width: rightMargin, node: child, start: length, end: length });
-        }
-      } else {
-        // Treat this item as an opaque box.
-        items.push({
-          type: 'box',
-          width: parseFloat(width!),
-          node: child,
-          start: 0,
-          end: 1,
-        });
-      }
+      items.push(...itemsFromElement(child, measureFn, hyphenateFn));
     }
   });
 
