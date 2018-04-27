@@ -24,12 +24,15 @@ type DOMGlue = Glue & NodeOffset;
 type DOMPenalty = Penalty & NodeOffset;
 type DOMItem = DOMBox | DOMGlue | DOMPenalty;
 
-function itemsFromTextNode(
+/**
+ * Add layout items for `node` to `items`.
+ */
+function addItemsForTextNode(
+  items: DOMItem[],
   node: Text,
   measureFn: (context: Element, word: string) => number,
   hyphenateFn?: (word: string) => string[],
 ) {
-  const items: DOMItem[] = [];
   const text = node.nodeValue!;
   const el = node.parentNode! as Element;
 
@@ -94,16 +97,17 @@ function itemsFromTextNode(
       items.push(box);
     }
   });
-
-  return items;
 }
 
-function itemsFromElement(
+/**
+ * Add layout items for `element` and its descendants to `items`.
+ */
+function addItemsForElement(
+  items: DOMItem[],
   element: Element,
   measureFn: (context: Element, word: string) => number,
   hyphenateFn?: (word: string) => string[],
 ) {
-  const items: DOMItem[] = [];
   const {
     display,
     width,
@@ -124,7 +128,7 @@ function itemsFromElement(
     }
 
     // Add items for child nodes.
-    items.push(...itemsFromNode(element, measureFn, hyphenateFn, false));
+    addItemsForNode(items, element, measureFn, hyphenateFn, false);
 
     // Add box for margin/border/padding at end of box.
     const rightMargin =
@@ -143,41 +147,42 @@ function itemsFromElement(
       end: 1,
     });
   }
-  return items;
 }
 
 /**
- * Create a list of input items for `breakLines` from a DOM node.
+ * Add layout items for input to `breakLines` for `node` to `items`.
+ *
+ * This function, `addItemsForTextNode` and `addItemsForElement` take an
+ * existing array as a first argument to avoid allocating a large number of
+ * small arrays.
  */
-function itemsFromNode(
-  n: Node,
+function addItemsForNode(
+  items: DOMItem[],
+  node: Node,
   measureFn: (context: Element, word: string) => number,
   hyphenateFn?: (word: string) => string[],
   addParagraphEnd = true,
-): DOMItem[] {
-  let items: DOMItem[] = [];
-  const children = Array.from(n.childNodes);
+) {
+  const children = Array.from(node.childNodes);
 
   children.forEach(child => {
     if (child instanceof Text) {
-      items.push(...itemsFromTextNode(child, measureFn, hyphenateFn));
+      addItemsForTextNode(items, child, measureFn, hyphenateFn);
     } else if (child instanceof Element) {
-      items.push(...itemsFromElement(child, measureFn, hyphenateFn));
+      addItemsForElement(items, child, measureFn, hyphenateFn);
     }
   });
 
   if (addParagraphEnd) {
-    const end = n.childNodes.length;
+    const end = node.childNodes.length;
 
     // Add a synthetic glue that aborbs any left-over space at the end of the
     // last line.
-    items.push({ type: 'glue', width: 0, shrink: 0, stretch: 1000, node: n, start: end, end });
+    items.push({ type: 'glue', width: 0, shrink: 0, stretch: 1000, node, start: end, end });
 
     // Add a forced break to end the paragraph.
-    items.push({ ...forcedBreak(), node: n, start: end, end });
+    items.push({ ...forcedBreak(), node, start: end, end });
   }
-
-  return items;
 }
 
 function elementLineWidth(el: HTMLElement) {
@@ -334,7 +339,8 @@ export function justifyContent(
   const elementBreaks: ElementBreakpoints[] = [];
   elements.forEach(el => {
     const lineWidth = elementLineWidth(el);
-    let items = itemsFromNode(el, measure);
+    let items: DOMItem[] = [];
+    addItemsForNode(items, el, measure);
     let breakpoints;
     try {
       // First try without hyphenation but a maximum stretch-factor for each
@@ -345,7 +351,8 @@ export function justifyContent(
     } catch (e) {
       if (e instanceof MaxAdjustmentExceededError) {
         // Retry with hyphenation and unlimited stretching of each space.
-        items = itemsFromNode(el, measure, hyphenateFn);
+        items = [];
+        addItemsForNode(items, el, measure, hyphenateFn);
         breakpoints = breakLines(items, lineWidth);
       } else {
         throw e;
