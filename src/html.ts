@@ -13,62 +13,6 @@ import DOMTextMeasurer from './util/dom-text-measurer';
 
 const NODE_TAG = 'insertedByTexLinebreak';
 
-/**
- * Render a string as justified text using HTML elements for spacing.
- *
- * @param el - The container element. This is assumed to be using `box-sizing:
- * border`.
- */
-export function renderToHTML(el: HTMLElement, text: string, hyphenate: (word: string) => string[]) {
-  // Clear element and measure font.
-  el.innerHTML = '';
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d')!;
-  const { fontSize, fontFamily, width, paddingLeft, paddingRight } = window.getComputedStyle(el);
-  const lineWidth = parseFloat(width!) - parseFloat(paddingLeft!) - parseFloat(paddingRight!);
-  ctx.font = `${fontSize} ${fontFamily}`;
-
-  const { items, positions } = layoutText(
-    text,
-    lineWidth,
-    w => ctx.measureText(w).width,
-    hyphenate,
-  );
-
-  // Generate `<div>` and `<span>` elements.
-  const addLine = () => {
-    const lineEl = document.createElement('div');
-    lineEl.style.whiteSpace = 'nowrap';
-    el.appendChild(lineEl);
-    return lineEl;
-  };
-
-  let prevXOffset = 0;
-  let lineEl = addLine();
-
-  positions.forEach((p, i) => {
-    const isNewLine = i > 0 && p.line !== positions[i - 1].line;
-    if (isNewLine) {
-      // In theory we could use `<br>` elements to insert line breaks, but in
-      // testing this resulted in Firefox and Chrome inserting an extra break
-      // near the end of the line. Adding lines this way produces consistent
-      // output across browsers.
-      lineEl = addLine();
-      prevXOffset = 0;
-    }
-    const span = document.createElement('span');
-    const item = items[p.item];
-    if (item.type === 'box') {
-      span.textContent = (item as TextBox).text;
-    } else if (item.type === 'penalty') {
-      span.textContent = '-';
-    }
-    span.style.marginLeft = `${p.xOffset - prevXOffset}px`;
-    prevXOffset = p.xOffset + item.width;
-    lineEl.appendChild(span);
-  });
-}
-
 interface NodeOffset {
   node: Node;
   start: number;

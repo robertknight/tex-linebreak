@@ -7,7 +7,7 @@ import Hypher from 'hypher';
 import enUsPatterns from 'hyphenation.en-us';
 
 import { layoutText, TextBox } from '../helpers';
-import { renderToHTML, justifyContent } from '../html';
+import { justifyContent } from '../html';
 
 const hyphenator = new Hypher(enUsPatterns);
 const hyphenate = (word: string) => hyphenator.hyphenate(word);
@@ -81,7 +81,8 @@ function rerender() {
   renderToCanvas(canvas, textContent, padding);
 
   // Render as text to HTML.
-  renderToHTML(para, textContent, hyphenate);
+  para.textContent = textarea.value;
+  justifyContent(para, hyphenate);
 
   // Render using CSS `text-justify`
   cssPara.innerHTML = textarea.value;
