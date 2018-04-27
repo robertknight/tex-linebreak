@@ -9,6 +9,7 @@ import {
   Penalty,
 } from './layout';
 import { textNodesInRange } from './range';
+import DOMTextMeasurer from './util/dom-text-measurer';
 
 const NODE_TAG = 'insertedByTexLinebreak';
 
@@ -79,54 +80,12 @@ type DOMGlue = Glue & NodeOffset;
 type DOMPenalty = Penalty & NodeOffset;
 type DOMItem = DOMBox | DOMGlue | DOMPenalty;
 
-let measureCtx: CanvasRenderingContext2D;
-
-/**
- * Return the computed CSS `font` property value for an element.
- */
-function getFont(el: Element) {
-  const style = getComputedStyle(el);
-
-  // Safari and Chrome can synthesize a value for `font` for us.
-  let font = style.font!;
-  if (font.length > 0) {
-    return font;
-  }
-
-  // Fall back to generating CSS font property value if browser (eg. Firefox)
-  // does not synthesize it automatically.
-  const { fontStyle, fontVariant, fontWeight, fontSize, fontFamily } = style;
-  font = `${fontStyle!} ${fontVariant!} ${fontWeight!} ${fontSize!} ${fontFamily}`;
-  return font;
-}
-
-/**
- * Measure the width of `text` as it would appear as a `Text` node child of
- * `context` ignoring line breaks.
- */
-function measureText(context: Element, text: string) {
-  if (!measureCtx) {
-    const canvas = document.createElement('canvas');
-    measureCtx = canvas.getContext('2d')!;
-  }
-  const style = getComputedStyle(context);
-
-  // Capture as much of the style as possible. Note that some properties such
-  // as `font-stretch`, `font-size-adjust` and `font-kerning` are not settable
-  // through the CSS `font` property.
-  //
-  // Apparently in some browsers the canvas context's text style inherits
-  // style properties from the `<canvas>` element.
-  // See https://stackoverflow.com/a/8955835/434243
-  measureCtx.font = getFont(context);
-  return measureCtx.measureText(text).width;
-}
-
 /**
  * Create a list of input items for `breakLines` from a DOM node.
  */
 function itemsFromNode(
   n: Node,
+  measureFn: (context: Element, word: string) => number,
   hyphenateFn?: (word: string) => string[],
   addParagraphEnd = true,
 ): DOMItem[] {
@@ -138,7 +97,7 @@ function itemsFromNode(
       let textOffset = 0;
       const nodeItems = layoutItemsFromString(
         child.nodeValue!,
-        w => measureText(child.parentNode! as Element, w),
+        w => measureFn(child.parentNode! as Element, w),
         hyphenateFn,
       )
         // Remove final glue and forced break.
@@ -178,7 +137,7 @@ function itemsFromNode(
         }
 
         // Add items for child nodes.
-        items.push(...itemsFromNode(child, hyphenateFn, false));
+        items.push(...itemsFromNode(child, measureFn, hyphenateFn, false));
 
         // Add box for margin/border/padding at end of box.
         const rightMargin =
@@ -362,10 +321,13 @@ export function justifyContent(
   });
 
   // Calculate line-break positions given current element width and content.
+  const measurer = new DOMTextMeasurer();
+  const measure = measurer.measure.bind(measurer);
+
   const elementBreaks: ElementBreakpoints[] = [];
   elements.forEach(el => {
     const lineWidth = elementLineWidth(el);
-    let items = itemsFromNode(el);
+    let items = itemsFromNode(el, measure);
     let breakpoints;
     try {
       // First try without hyphenation but a maximum stretch-factor for each
@@ -376,7 +338,7 @@ export function justifyContent(
     } catch (e) {
       if (e instanceof MaxAdjustmentExceededError) {
         // Retry with hyphenation and unlimited stretching of each space.
-        items = itemsFromNode(el, hyphenateFn);
+        items = itemsFromNode(el, measure, hyphenateFn);
         breakpoints = breakLines(items, lineWidth);
       } else {
         throw e;
