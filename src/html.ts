@@ -85,27 +85,73 @@ function itemsFromTextNode(
   measureFn: (context: Element, word: string) => number,
   hyphenateFn?: (word: string) => string[],
 ) {
+  const items: DOMItem[] = [];
+  const text = node.nodeValue!;
+  const el = node.parentNode! as Element;
+
+  const spaceWidth = measureFn(el, ' ');
+  const shrink = Math.max(0, spaceWidth - 2);
+  const hyphenWidth = measureFn(el, '-');
+  const isSpace = (word: string) => /\s/.test(word.charAt(0));
+
+  const chunks = text.split(/(\s+)/).filter(w => w.length > 0);
   let textOffset = 0;
-  const nodeItems = layoutItemsFromString(
-    node.nodeValue!,
-    w => measureFn(node.parentNode! as Element, w),
-    hyphenateFn,
-  )
-    // Remove final glue and forced break.
-    .slice(0, -2)
-    // Annotate with DOM node metadata.
-    .map(it => {
-      const length = it.type === 'box' || it.type === 'glue' ? it.text.length : 0;
-      const nodeOffset = { node, start: textOffset, end: textOffset + length };
-      textOffset += length;
-      return { ...it, ...nodeOffset };
-    })
-    // Remove consecutive glue items.
-    .filter((it, i, ary) => {
-      const prevWasGlue = i > 0 && it.type === 'glue' && ary[i - 1].type === 'glue';
-      return !prevWasGlue;
-    });
-  return nodeItems;
+
+  chunks.forEach(w => {
+    if (isSpace(w)) {
+      const glue: DOMGlue = {
+        type: 'glue',
+        width: spaceWidth,
+        shrink,
+        stretch: spaceWidth * 1.5,
+        node,
+        start: textOffset,
+        end: textOffset + w.length,
+      };
+      items.push(glue);
+      textOffset += w.length;
+      return;
+    }
+
+    if (hyphenateFn) {
+      const chunks = hyphenateFn(w);
+      chunks.forEach((c, i) => {
+        const box: DOMBox = {
+          type: 'box',
+          width: measureFn(el, c),
+          node,
+          start: textOffset,
+          end: textOffset + c.length,
+        };
+        textOffset += c.length;
+        items.push(box);
+        if (i < chunks.length - 1) {
+          const hyphen: DOMPenalty = {
+            type: 'penalty',
+            width: hyphenWidth,
+            cost: 10,
+            flagged: true,
+            node,
+            start: textOffset,
+            end: textOffset,
+          };
+          items.push(hyphen);
+        }
+      });
+    } else {
+      const box: DOMBox = {
+        type: 'box',
+        width: measureFn(el, w),
+        node,
+        start: textOffset,
+        end: textOffset + w.length,
+      };
+      textOffset += w.length;
+      items.push(box);
+    }
+  });
+
+  return items;
 }
 
 function itemsFromElement(
