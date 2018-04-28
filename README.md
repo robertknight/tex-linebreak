@@ -9,10 +9,10 @@ Knuth-Plass line-breaking algorithm, as used by TeX.
 
 ## Introduction
 
-Most text on the web is presented with "ragged-right" margins, which is arguably
-less attractive than the justified text you would find in eg. a scientific paper
-or newspaper. Text can be justified in web pages using `text-align: justify`.
-This option alone tends to result in large&nbsp;&nbsp;&nbsp;spaces
+Most text on the web is presented with "ragged-right" margins, as opposed to
+the justified text you would find in eg. a scientific paper or newspaper.
+Text can be justified in web pages using `text-align: justify`.
+However this option alone tends to result in large&nbsp;&nbsp;&nbsp;spaces
 &nbsp;&nbsp;&nbsp;between words which is distracting to read. This is due to the
 use of "first fit" line-breaking algorithms where the browser considers only the
 current line when finding the next breakpoint. Some browsers support hyphenation
