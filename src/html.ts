@@ -50,7 +50,7 @@ function addItemsForTextNode(
         type: 'glue',
         width: spaceWidth,
         shrink,
-        stretch: spaceWidth * 1.5,
+        stretch: spaceWidth,
         node,
         start: textOffset,
         end: textOffset + w.length,

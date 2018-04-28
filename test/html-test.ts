@@ -129,7 +129,7 @@ describe('html', () => {
       justifyContent(para, hyphenate);
 
       const lines = extractLines(para);
-      assert.deepEqual(lines, ['This is som', '-e test content th', 'at should be w', '-rapped']);
+      assert.deepEqual(lines, ['This is som', '-e test conte', 'nt that shoul', '-d be wrapped']);
     });
 
     it('uses correct line width if `box-sizing` is `border-box`', () => {
