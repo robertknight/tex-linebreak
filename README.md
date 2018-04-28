@@ -191,6 +191,19 @@ http-server -c-1
 Then navigate to http://127.0.0.1:8080/src/demos/layout.html (note that
 http-server may choose a different port).
 
+## Caveats
+
+The library currently has a number of caveats:
+
+- It is [not aware of floated content](https://github.com/robertknight/tex-linebreak/issues/1)
+  which can affect the available space in a paragraph to lay out text into.
+  In the presence of floats lines can exceed the width of the paragraph.
+- Justification of existing HTML content relies on modifying the DOM to insert
+  linebreaks and wrap text nodes in order to adjust inter-word spacing on each
+  line. This can be in slow in large documents. Test it on your content to
+  decide whether the overhead is acceptable for your use case. Also limit the
+  number of elements which you apply justification to.
+
 ## References
 
 [1] D. E. Knuth and M. F. Plass, “[Breaking paragraphs into lines](http://www.eprg.org/G53DOC/pdfs/knuth-plass-breaking.pdf),” Softw. Pract. Exp., vol. 11, no. 11, pp. 1119–1184, Nov. 1981.
