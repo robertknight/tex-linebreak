@@ -258,6 +258,17 @@ function taggedChildren(node: Node): Node[] {
   return children;
 }
 
+function isTextOrInlineElement(node: Node) {
+  if (node instanceof Text) {
+    return true;
+  } else if (node instanceof Element) {
+    const style = getComputedStyle(node);
+    return style.display === 'inline';
+  } else {
+    return false;
+  }
+}
+
 /**
  * Wrap text nodes in a range and adjust the inter-word spacing.
  *
@@ -265,7 +276,10 @@ function taggedChildren(node: Node): Node[] {
  * @param wordSpacing - The additional spacing to add between words in pixels
  */
 function addWordSpacing(r: Range, wordSpacing: number) {
-  const texts = textNodesInRange(r);
+  // Collect all text nodes in range, skipping any non-inline elements and
+  // their children because those are treated as opaque blocks by the line-
+  // breaking step.
+  const texts = textNodesInRange(r, isTextOrInlineElement);
 
   for (let t of texts) {
     const wrapper = document.createElement('span');

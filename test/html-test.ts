@@ -152,15 +152,17 @@ describe('html', () => {
       assert.deepEqual(lines, ['This is some test content', 'that should be wrapped']);
     });
 
-    it('does not insert line breaks in `inline-block` boxes', () => {
-      para.innerHTML = `<span style="display: inline-block">
-      This is a lengthy line which should not be wrapped
-      </span>`;
+    it('does not break lines or adjust spacing inside `inline-block` boxes', () => {
+      const blockContent = 'This is a lengthy line which should not be wrapped';
+      para.innerHTML = `foo
+      <span class="block" style="display: inline-block">${blockContent}</span>
+      bar`;
       const initialHtml = para.innerHTML;
 
       justifyContent(para);
 
-      assert.equal(para.innerHTML, initialHtml);
+      const blockBox = para.querySelector('.block')!;
+      assert.equal(blockBox.innerHTML.trim(), blockContent);
     });
 
     [
