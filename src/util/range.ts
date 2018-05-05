@@ -1,3 +1,9 @@
+declare global {
+  interface Range {
+    intersectsNode(node: Node): boolean;
+  }
+}
+
 /**
  * Return a list of `Text` nodes in `range`.
  *
@@ -21,25 +27,15 @@ export function textNodesInRange(range: Range, filter: (n: Node) => boolean) {
     false /* expandEntityReferences */,
   );
 
+  let currentNode: Node|null = nodeIter.currentNode;
   let foundStart = false;
   let nodes: Text[] = [];
-  while (nodeIter.currentNode) {
-    if (!foundStart) {
-      if (nodeIter.currentNode !== range.startContainer) {
-        nodeIter.nextNode();
-        continue;
-      } else {
-        foundStart = true;
-      }
-    }
-    if (nodeIter.currentNode instanceof Text) {
-      nodes.push(nodeIter.currentNode);
-    }
-    if (nodeIter.currentNode === range.endContainer) {
-      break;
-    }
 
-    nodeIter.nextNode();
+  while (currentNode) {
+    if (range.intersectsNode(currentNode) && currentNode instanceof Text) {
+      nodes.push(currentNode);
+    }
+    currentNode = nodeIter.nextNode();
   }
   return nodes;
 }
