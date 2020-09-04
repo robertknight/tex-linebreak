@@ -184,7 +184,7 @@ npm i -g http-server
 git clone https://github.com/robertknight/tex-linebreak.git
 cd tex-linebreak
 yarn
-yarn build-demos
+yarn build-dev
 http-server -c-1
 ```
 
