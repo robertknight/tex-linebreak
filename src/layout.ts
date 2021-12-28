@@ -234,7 +234,7 @@ export function breakLines(
     let lastActive: Node | null = null;
 
     const feasible: Node[] = [];
-    active.forEach(a => {
+    active.forEach((a) => {
       // Compute adjustment ratio from `a` to `b`.
       let adjustmentRatio = 0;
       const lineShrink = sumShrink - a.totalShrink;
@@ -402,7 +402,7 @@ export function breakLines(
   //     active set unchanged and breaks early or finishes with a non-empty active
   //     set.
   let bestNode: Node | null = null;
-  active.forEach(a => {
+  active.forEach((a) => {
     if (!bestNode || a.totalDemerits < bestNode.totalDemerits) {
       bestNode = a;
     }

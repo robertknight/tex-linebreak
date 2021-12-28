@@ -14,7 +14,7 @@ function extractLines(el: HTMLElement) {
 
 function stripSpacing(el: HTMLElement) {
   const spans = Array.from(el.querySelectorAll('span'));
-  spans.forEach(s => s.style.wordSpacing = null);
+  spans.forEach(s => s.style.wordSpacing = '');
 }
 
 function trimLineSpans(spans: HTMLElement[]) {

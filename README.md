@@ -1,6 +1,5 @@
 # tex-linebreak
 
-![Build status](https://travis-ci.org/robertknight/tex-linebreak.svg?branch=master)
 ![npm version](https://img.shields.io/npm/v/tex-linebreak.svg)
 
 _tex-linebreak_ is a JavaScript library for laying out justified text as you

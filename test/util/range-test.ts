@@ -21,7 +21,7 @@ describe('range', () => {
     it('returns all text nodes in range', () => {
       const texts = [new Text('first'), new Text('second')];
 
-      texts.forEach(t => para.appendChild(t));
+      texts.forEach((t) => para.appendChild(t));
       const range = document.createRange();
       range.selectNode(para);
 
@@ -35,7 +35,7 @@ describe('range', () => {
       range.selectNode(para);
       const texts = textNodesInRange(range, acceptAllNodes);
 
-      texts.forEach(t => assert.instanceOf(t, Text));
+      texts.forEach((t) => assert.instanceOf(t, Text));
     });
 
     it('returns text nodes in a range with only one node', () => {
@@ -50,7 +50,7 @@ describe('range', () => {
 
     it('does not return text nodes outside of range', () => {
       const texts = [new Text('one'), new Text('two'), new Text('three')];
-      texts.forEach(t => para.appendChild(t));
+      texts.forEach((t) => para.appendChild(t));
 
       const range = document.createRange();
       range.setStart(para, 1);
@@ -76,12 +76,9 @@ describe('range', () => {
           return true;
         }
         return node.tagName !== 'SPAN';
-      }
+      };
 
-      assert.deepEqual(textNodesInRange(range, rejectSpans), [
-        texts[0],
-        texts[2],
-      ]);
+      assert.deepEqual(textNodesInRange(range, rejectSpans), [texts[0], texts[2]]);
     });
   });
 });

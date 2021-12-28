@@ -13,9 +13,10 @@ declare global {
  */
 export function textNodesInRange(range: Range, filter: (n: Node) => boolean) {
   const root = range.commonAncestorContainer;
-  const nodeIter = root.ownerDocument.createTreeWalker(
+  const nodeIter = root.ownerDocument!.createTreeWalker(
     root,
-    NodeFilter.SHOW_ALL, {
+    NodeFilter.SHOW_ALL,
+    {
       acceptNode(node: Node) {
         if (filter(node)) {
           return NodeFilter.FILTER_ACCEPT;
@@ -24,10 +25,12 @@ export function textNodesInRange(range: Range, filter: (n: Node) => boolean) {
         }
       },
     },
+
+    // @ts-expect-error - Extra argument for IE 11 / Legacy Edge
     false /* expandEntityReferences */,
   );
 
-  let currentNode: Node|null = nodeIter.currentNode;
+  let currentNode: Node | null = nodeIter.currentNode;
   let foundStart = false;
   let nodes: Text[] = [];
 

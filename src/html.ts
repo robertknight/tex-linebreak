@@ -41,10 +41,10 @@ function addItemsForTextNode(
   const hyphenWidth = measureFn(el, '-');
   const isSpace = (word: string) => /\s/.test(word.charAt(0));
 
-  const chunks = text.split(/(\s+)/).filter(w => w.length > 0);
+  const chunks = text.split(/(\s+)/).filter((w) => w.length > 0);
   let textOffset = 0;
 
-  chunks.forEach(w => {
+  chunks.forEach((w) => {
     if (isSpace(w)) {
       const glue: DOMGlue = {
         type: 'glue',
@@ -165,7 +165,7 @@ function addItemsForNode(
 ) {
   const children = Array.from(node.childNodes);
 
-  children.forEach(child => {
+  children.forEach((child) => {
     if (child instanceof Text) {
       addItemsForTextNode(items, child, measureFn, hyphenateFn);
     } else if (child instanceof Element) {
@@ -301,7 +301,7 @@ export function unjustifyContent(el: HTMLElement) {
   for (let node of tagged) {
     const parent = node.parentNode!;
     const children = Array.from(node.childNodes);
-    children.forEach(child => {
+    children.forEach((child) => {
       parent.insertBefore(child, node);
     });
     parent.removeChild(node);
@@ -342,7 +342,7 @@ export function justifyContent(
   }
 
   // Undo the changes made by any previous justification of this content.
-  elements.forEach(el => {
+  elements.forEach((el) => {
     unjustifyContent(el);
   });
 
@@ -351,7 +351,7 @@ export function justifyContent(
   const measure = measurer.measure.bind(measurer);
 
   const elementBreaks: ElementBreakpoints[] = [];
-  elements.forEach(el => {
+  elements.forEach((el) => {
     const lineWidth = elementLineWidth(el);
     let items: DOMItem[] = [];
     addItemsForNode(items, el, measure);
