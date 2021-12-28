@@ -1,8 +1,5 @@
 import { assert } from 'chai';
-import xorShift from 'xorshift';
-
-// This library was clearly not designed to be used with TypeScript :(
-const XorShift = xorShift.constructor;
+import { XorShift } from 'xorshift';
 
 import {
   adjustmentRatios,
