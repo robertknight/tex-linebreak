@@ -76,12 +76,9 @@ describe('range', () => {
           return true;
         }
         return node.tagName !== 'SPAN';
-      }
+      };
 
-      assert.deepEqual(textNodesInRange(range, rejectSpans), [
-        texts[0],
-        texts[2],
-      ]);
+      assert.deepEqual(textNodesInRange(range, rejectSpans), [texts[0], texts[2]]);
     });
   });
 });
