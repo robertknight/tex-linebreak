@@ -27,13 +27,13 @@ function renderToCanvas(c: HTMLCanvasElement, t: string, margins: { left: number
   const { items, positions } = layoutText(
     t,
     lineWidth,
-    w => ctx.measureText(w).width,
-    w => hyphenator.hyphenate(w),
+    (w) => ctx.measureText(w).width,
+    (w) => hyphenator.hyphenate(w),
   );
 
   // Render each line.
   const lineSpacing = 30;
-  positions.forEach(p => {
+  positions.forEach((p) => {
     const yOffset = (p.line + 1) * lineSpacing;
     const item = items[p.item];
     const text = item.type === 'box' ? (item as TextBox).text : '-';
@@ -94,4 +94,4 @@ lineWidthInput.addEventListener('input', rerender);
 rerender();
 
 const htmlParas = Array.from(document.querySelectorAll('.js-tex-linebreak'));
-htmlParas.forEach(el => justifyContent(el as HTMLElement));
+htmlParas.forEach((el) => justifyContent(el as HTMLElement));

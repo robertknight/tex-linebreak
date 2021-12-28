@@ -36,7 +36,7 @@ export function layoutItemsFromString(
   hyphenateFn?: (word: string) => string[],
 ): TextInputItem[] {
   const items: TextInputItem[] = [];
-  const chunks = s.split(/(\s+)/).filter(w => w.length > 0);
+  const chunks = s.split(/(\s+)/).filter((w) => w.length > 0);
 
   // Here we assume that every space has the same default size. Callers who want
   // more flexibility can use the lower-level functions.
@@ -45,7 +45,7 @@ export function layoutItemsFromString(
   const isSpace = (word: string) => /\s/.test(word.charAt(0));
 
   const shrink = Math.max(0, spaceWidth - 2);
-  chunks.forEach(w => {
+  chunks.forEach((w) => {
     if (isSpace(w)) {
       const g: TextGlue = {
         type: 'glue',
