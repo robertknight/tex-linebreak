@@ -4,14 +4,7 @@ process.env.CHROME_BIN = puppeteer.executablePath();
 
 module.exports = config => {
   config.set({
-    browsers: ['Chrome_on_Travis'],
-
-    customLaunchers: {
-      Chrome_on_Travis: {
-        base: 'ChromeHeadless',
-        flags: ['--no-sandbox'],
-      },
-    },
+    browsers: ['ChromeHeadless'],
 
     frameworks: ['mocha'],
 
