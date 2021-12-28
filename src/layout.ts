@@ -1,5 +1,3 @@
-import ErrorSubclass from 'error-subclass';
-
 /**
  * An object (eg. a word) to be typeset.
  */
@@ -121,7 +119,7 @@ const defaultOptions: Options = {
 /**
  * Error thrown by `breakLines` when `maxAdjustmentRatio` is exceeded.
  */
-export class MaxAdjustmentExceededError extends ErrorSubclass {}
+export class MaxAdjustmentExceededError extends Error {}
 
 /**
  * Break a paragraph of text into justified lines.

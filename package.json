@@ -42,7 +42,5 @@
     "test": "webpack --mode development --config webpack-test.config.js && karma start --single-run",
     "watch": "webpack --watch --mode development"
   },
-  "dependencies": {
-    "error-subclass": "^2.2.0"
-  }
+  "dependencies": {}
 }
