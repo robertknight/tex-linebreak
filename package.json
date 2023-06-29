@@ -12,10 +12,10 @@
     "url": "https://github.com/robertknight/tex-linebreak.git"
   },
   "devDependencies": {
-    "@types/chai": "^4.3.1",
+    "@types/chai": "^4.3.4",
     "@types/mocha": "^9.1.1",
     "@types/node": "^18.6.3",
-    "chai": "^4.3.6",
+    "chai": "^4.3.7",
     "hyphenation.en-us": "^0.2.1",
     "hypher": "^0.2.5",
     "karma": "^6.4.0",
