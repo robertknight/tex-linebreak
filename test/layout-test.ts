@@ -275,21 +275,6 @@ describe('layout', () => {
       assert.notDeepEqual(breakpointsA, breakpointsB);
     });
 
-    it('throws if an item has negative width', () => {
-      const items = [box(-10), glue(5, 10, 10), forcedBreak()];
-      assert.throws(() => breakLines(items, 15));
-    });
-
-    it('throws if a glue item has negative shrink', () => {
-      const items = [box(10), glue(5, -10, 10), forcedBreak()];
-      assert.throws(() => breakLines(items, 15));
-    });
-
-    it('throws if a glue item has negative stretch', () => {
-      const items = [box(10), glue(5, 10, -10), forcedBreak()];
-      assert.throws(() => breakLines(items, 15));
-    });
-
     it('throws `MaxAdjustmentExceededError` if max adjustment ratio is exceeded', () => {
       const items = [box(10), glue(5, 10, 10), box(10), forcedBreak()];
       const opts = { maxAdjustmentRatio: 1 };

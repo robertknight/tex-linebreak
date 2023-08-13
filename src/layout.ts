@@ -4,7 +4,7 @@
 export interface Box {
   type: 'box';
 
-  /** Amount of space required by this content. Must be >= 0. */
+  /** Amount of space required by this content. */
   width: number;
 }
 
@@ -18,7 +18,7 @@ export interface Box {
 export interface Glue {
   type: 'glue';
   /**
-   * Preferred width of this space. Must be >= 0.
+   * Preferred width of this space.
    */
   width: number;
   /** Maximum amount by which this space can grow. */
@@ -109,6 +109,10 @@ function isForcedBreak(item: InputItem) {
   return item.type === 'penalty' && item.cost <= MIN_COST;
 }
 
+function isBreakablePenalty(item: InputItem) {
+  return item.type === 'penalty' && item.cost < MAX_COST;
+}
+
 const defaultOptions: Options = {
   maxAdjustmentRatio: null,
   initialMaxAdjustmentRatio: 1,
@@ -196,13 +200,10 @@ export function breakLines(
 
   for (let b = 0; b < items.length; b++) {
     const item = items[b];
+    const isLastItem = b === items.length - 1;
 
-    // TeX allows items with negative widths or stretch factors but imposes two
-    // restrictions for efficiency. These restrictions are not yet implemented
-    // here and we avoid the problem by just disallowing negative
-    // width/shrink/stretch amounts.
-    if (item.width < 0) {
-      throw new Error(`Item ${b} has disallowed negative width`);
+    if (item.type === 'penalty' && item.width < 0) {
+      throw new Error(`Penalty item ${b} has disallowed negative width`);
     }
 
     // Determine if this is a feasible breakpoint and update `sumWidth`,
@@ -211,10 +212,6 @@ export function breakLines(
     if (item.type === 'box') {
       sumWidth += item.width;
     } else if (item.type === 'glue') {
-      if (item.shrink < 0 || item.stretch < 0) {
-        throw new Error(`Item ${b} has disallowed negative stretch or shrink`);
-      }
-
       canBreak = b > 0 && items[b - 1].type === 'box';
       if (!canBreak) {
         sumWidth += item.width;
@@ -261,7 +258,20 @@ export function breakLines(
         );
       }
 
-      if (adjustmentRatio < MIN_ADJUSTMENT_RATIO || isForcedBreak(item)) {
+      if (
+        adjustmentRatio < MIN_ADJUSTMENT_RATIO ||
+        isForcedBreak(item) ||
+        // Restriction 1 on negative breaks (see page 1156,
+        // http://www.eprg.org/G53DOC/pdfs/knuth-plass-breaking.pdf#page=38):
+        // The total width up to `a` cannot be larger than the total width up to `b`.
+        a.totalWidth > sumWidth ||
+        // Restriction 2 on negative breaks:
+        // If no item between `a` and `b` is a box item or a forced break, then `b` must either:
+        // - be the last item, or
+        // - be followed by a box or breakable penalty.
+        (!items.slice(a.index, b).some((i) => i.type === 'box' || isForcedBreak(i)) &&
+          !(isLastItem || items[b + 1].type === 'box' || isBreakablePenalty(items[b + 1])))
+      ) {
         // Items from `a` to `b` cannot fit on one line.
         active.delete(a);
         lastActive = a;
