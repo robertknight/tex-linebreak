@@ -312,7 +312,7 @@ export function breakLines(
         let widthToNextBox = 0;
         let shrinkToNextBox = 0;
         let stretchToNextBox = 0;
-        for (let bp = b; bp < items.length; bp++) {
+        for (let bp = b + 1; bp < items.length; bp++) {
           const item = items[bp];
           if (item.type === 'box') {
             break;
