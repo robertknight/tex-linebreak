@@ -124,12 +124,14 @@ describe('html', () => {
     });
 
     it('applies hyphenation', () => {
-      const hyphenate = (s: string) => s.split('e');
+      const text = 'Content with long words that definitely needs hyphenation';
+      para.textContent = text;
 
       justifyContent(para, hyphenate);
+      assert.notEqual(para.textContent, text, 'did not insert hyphens');
 
       const lines = extractLines(para);
-      assert.deepEqual(lines, ['This is som', '-e test conte', 'nt that shoul', '-d be wrapped']);
+      assert.deepEqual(lines, ['Content with', 'long words', 'that definitely', 'needs hyphen', '-ation']);
     });
 
     it('uses correct line width if `box-sizing` is `border-box`', () => {
