@@ -32,8 +32,7 @@
     "xorshift": "^1.2.0"
   },
   "files": [
-    "dist/*.js",
-    "dist/*.js.map"
+    "dist/**"
   ],
   "scripts": {
     "build-prod": "webpack --mode production && yarn types",
