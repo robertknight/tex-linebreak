@@ -107,6 +107,138 @@ function itemsFromString(s: string, charWidth: number, glueStretch: number): Tex
   return items;
 }
 
+function charWidth(char: string): number {
+  // Traditional Monotype character widths in machine units (1/18th of an em)
+  // from p. 75 of Digital Typography
+  if (char.length !== 1) {
+    throw new Error(`Input is not a single character: ${char}`);
+  }
+  switch (char) {
+    case 'i':
+    case 'l':
+    case ',':
+    case '.':
+    case ';':
+    case '’':
+      return 5;
+    case 'f':
+    case 'j':
+    case 'I':
+    case '-':
+    case '\u00ad':
+      return 6;
+    case 'r':
+    case 's':
+    case 't':
+      return 7;
+    case 'c':
+    case 'e':
+    case 'z':
+      return 8;
+    case 'a':
+    case 'g':
+    case 'o':
+    case 'v':
+      return 9;
+    case 'b':
+    case 'd':
+    case 'h':
+    case 'k':
+    case 'n':
+    case 'p':
+    case 'q':
+    case 'u':
+    case 'x':
+    case 'y':
+      return 10;
+    case 'w':
+    case 'C':
+      return 13;
+    case 'm':
+      return 15;
+    default:
+      throw new Error(`Unsupported character: ${char.charCodeAt(0)}`);
+  }
+}
+
+function frogPrinceItemsImpl(
+  text: string,
+  prologue: TextInputItem[],
+  betweenWords: (c: string) => TextInputItem[],
+  epilogue: TextInputItem[],
+): TextInputItem[] {
+  const result: TextInputItem[] = [];
+  let buf = '';
+  let width = 0;
+  let lastC = '*';
+
+  result.push(...prologue);
+
+  for (const c of text) {
+    if (['-', '\u00AD', ' '].includes(c)) {
+      if (buf !== '') {
+        result.push({ type: 'box', width, text: buf } as TextBox);
+        buf = '';
+        width = 0;
+      }
+    }
+
+    switch (c) {
+      case ' ':
+        result.push(...betweenWords(lastC));
+        break;
+      case '-':
+        result.push({ type: 'box', width: charWidth(c), text: '-' } as TextBox);
+        result.push({ type: 'penalty', width: 0, cost: 50, flagged: true });
+        break;
+      case '\u00AD':
+        // Soft hyphen
+        result.push({ type: 'penalty', width: charWidth(c), cost: 50, flagged: true });
+        break;
+      default:
+        buf += c;
+        width += charWidth(c);
+        break;
+    }
+
+    lastC = c;
+  }
+
+  if (buf !== '') {
+    result.push({ type: 'box', width, text: buf });
+  }
+
+  result.push(...epilogue);
+
+  return result;
+}
+
+const frogPrinceText =
+  'In olden times when wish\u00ading still helped one, there lived a king whose daugh\u00adters were all beau\u00adti\u00adful; and the young\u00adest was so beau\u00adti\u00adful that the sun it\u00adself, which has seen so much, was aston\u00adished when\u00adever it shone in her face. Close by the king’s castle lay a great dark for\u00adest, and un\u00adder an old lime-tree in the for\u00adest was a well, and when the day was very warm, the king’s child went out into the for\u00adest and sat down by the side of the cool foun\u00adtain; and when she was bored she took a golden ball, and threw it up on high and caught it; and this ball was her favor\u00adite play\u00adthing.';
+
+function frogPrinceItems(): TextInputItem[] {
+  // Built as described on p. 75 of Digital Typography
+  const prologue: TextInputItem[] = [];
+  const betweenWords = (c: string): TextInputItem[] => {
+    switch (c) {
+      case ',':
+        return [{ type: 'glue', width: 6, stretch: 4, shrink: 2, text: ' ' } as TextGlue];
+      case ';':
+        return [{ type: 'glue', width: 6, stretch: 4, shrink: 1, text: ' ' } as TextGlue];
+      case '.':
+        return [{ type: 'glue', width: 8, stretch: 6, shrink: 1, text: ' ' } as TextGlue];
+      default:
+        return [{ type: 'glue', width: 6, stretch: 3, shrink: 2, text: ' ' } as TextGlue];
+    }
+  };
+  const epilogue: TextInputItem[] = [
+    { type: 'penalty', width: 0, cost: 1000, flagged: false },
+    { type: 'glue', width: 0, stretch: 1000, shrink: 0, text: '' } as TextGlue,
+    { type: 'penalty', width: 0, cost: -1000, flagged: true },
+  ];
+  return frogPrinceItemsImpl(frogPrinceText, prologue, betweenWords, epilogue);
+}
+
 describe('layout', () => {
   describe('breakLines', () => {
     it('returns an empty list if the input is empty', () => {
@@ -117,6 +249,64 @@ describe('layout', () => {
     it('returns just the initial breakpoint if there are no legal breakpoints', () => {
       const breakpoints = breakLines([box(10)], 100);
       assert.deepEqual(breakpoints, [0]);
+    });
+
+    it('generates narrow frog prince layout from p. 81 of Digital Typography', () => {
+      const items = frogPrinceItems();
+      // width given on p. 78 of Digital Typography
+      // subtract 1em (18 machine units) from the first line
+      const lineLengths = [372, ...Array(items.length - 1).fill(390)];
+      const breakpoints = breakLines(items, lineLengths);
+      const lines = lineStrings(items, breakpoints);
+      assert.deepEqual(lines, [
+        'In olden times when wishing still helped one,',
+        'there lived a king whose daughters were all beau-',
+        'tiful; and the youngest was so beautiful that the',
+        'sun itself, which has seen so much, was aston-',
+        'ished whenever it shone in her face. Close by the',
+        'king’s castle lay a great dark forest, and under an',
+        'old limetree in the forest was a well, and when',
+        'the day was very warm, the king’s child went out',
+        'into the forest and sat down by the side of the',
+        'cool fountain; and when she was bored she took a',
+        'golden ball, and threw it up on high and caught',
+        'it; and this ball was her favorite plaything. -',
+      ]);
+      const adjRatios = adjustmentRatios(items, lineLengths, breakpoints).map((num) =>
+        Number(num.toFixed(3)),
+      );
+      assert.deepEqual(
+        adjRatios,
+        [0.857, 0.0, 0.28, 1.0, 0.067, -0.278, 0.536, -0.167, 0.7, -0.176, 0.357, 0.049],
+      );
+    });
+
+    it('generates wide frog prince layout from p. 82 of Digital Typography', () => {
+      const items = frogPrinceItems();
+      // width given on p. 81 of Digital Typography
+      // subtract 1em (18 machine units) from the first line
+      const lineLengths = [482, ...Array(items.length - 1).fill(500)];
+      const breakpoints = breakLines(items, lineLengths);
+      const lines = lineStrings(items, breakpoints);
+      assert.deepEqual(lines, [
+        'In olden times when wishing still helped one, there lived a',
+        'king whose daughters were all beautiful; and the youngest was',
+        'so beautiful that the sun itself, which has seen so much, was',
+        'astonished whenever it shone in her face. Close by the king’s',
+        'castle lay a great dark forest, and under an old limetree in the',
+        'forest was a well, and when the day was very warm, the king’s',
+        'child went out into the forest and sat down by the side of the',
+        'cool fountain; and when she was bored she took a golden ball,',
+        'and threw it up on high and caught it; and this ball was her',
+        'favorite plaything. -',
+      ]);
+      const adjRatios = adjustmentRatios(items, lineLengths, breakpoints).map((num) =>
+        Number(num.toFixed(3)),
+      );
+      assert.deepEqual(
+        adjRatios,
+        [0.774, 0.179, 0.629, 0.545, 0.0, 0.079, 0.282, 0.294, 0.575, 0.353],
+      );
     });
 
     it('generates expected layout', () => {
