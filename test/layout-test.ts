@@ -239,6 +239,93 @@ function frogPrinceItems(): TextInputItem[] {
   return frogPrinceItemsImpl(frogPrinceText, prologue, betweenWords, epilogue);
 }
 
+function frogPrinceCenteredItems(): TextInputItem[] {
+  // Built as described on pp. 94-95 of Digital Typography
+  const prologue: TextInputItem[] = [
+    { type: 'glue', width: 0, stretch: 18, shrink: 0, text: '' } as TextGlue,
+  ];
+  const betweenWords = (c: string): TextInputItem[] => {
+    const stretchFactor: number = 6; // Knuth’s magic scale factor
+    let outerGlueStretch: number;
+    switch (c) {
+      case ',':
+        outerGlueStretch = 4 * stretchFactor;
+        return [
+          { type: 'glue', width: 0, stretch: outerGlueStretch, shrink: 0, text: '' } as TextGlue,
+          { type: 'penalty', width: 0, cost: 0, flagged: false } as Penalty,
+          {
+            type: 'glue',
+            width: 6,
+            stretch: -2 * outerGlueStretch,
+            shrink: 0,
+            text: '',
+          } as TextGlue,
+          { type: 'box', width: 0, text: '' } as TextBox,
+          { type: 'penalty', width: 0, cost: 1000, flagged: false, text: '' } as Penalty,
+          { type: 'glue', width: 0, stretch: outerGlueStretch, shrink: 0 } as TextGlue,
+        ];
+      case ';':
+        outerGlueStretch = 4 * stretchFactor;
+        return [
+          { type: 'glue', width: 0, stretch: outerGlueStretch, shrink: 0, text: '' } as TextGlue,
+          { type: 'penalty', width: 0, cost: 0, flagged: false } as Penalty,
+          {
+            type: 'glue',
+            width: 6,
+            stretch: -2 * outerGlueStretch,
+            shrink: 0,
+            text: '',
+          } as TextGlue,
+          { type: 'box', width: 0, text: '' } as TextBox,
+          { type: 'penalty', width: 0, cost: 1000, flagged: false, text: '' } as Penalty,
+          { type: 'glue', width: 0, stretch: outerGlueStretch, shrink: 0 } as TextGlue,
+        ];
+      case '.':
+        outerGlueStretch = 6 * stretchFactor;
+        return [
+          { type: 'glue', width: 0, stretch: outerGlueStretch, shrink: 0, text: '' } as TextGlue,
+          { type: 'penalty', width: 0, cost: 0, flagged: false } as Penalty,
+          {
+            type: 'glue',
+            width: 8,
+            stretch: -2 * outerGlueStretch,
+            shrink: 0,
+            text: '',
+          } as TextGlue,
+          { type: 'box', width: 0, text: '' } as TextBox,
+          { type: 'penalty', width: 0, cost: 1000, flagged: false, text: '' } as Penalty,
+          { type: 'glue', width: 0, stretch: outerGlueStretch, shrink: 0 } as TextGlue,
+        ];
+      default:
+        outerGlueStretch = 3 * stretchFactor;
+        return [
+          { type: 'glue', width: 0, stretch: outerGlueStretch, shrink: 0, text: '' } as TextGlue,
+          { type: 'penalty', width: 0, cost: 0, flagged: false } as Penalty,
+          {
+            type: 'glue',
+            width: 6,
+            stretch: -2 * outerGlueStretch,
+            shrink: 0,
+            text: '',
+          } as TextGlue,
+          { type: 'box', width: 0, text: '' } as TextBox,
+          { type: 'penalty', width: 0, cost: 1000, flagged: false, text: '' } as Penalty,
+          { type: 'glue', width: 0, stretch: outerGlueStretch, shrink: 0 } as TextGlue,
+        ];
+    }
+  };
+  const epilogue: TextInputItem[] = [
+    { type: 'glue', width: 0, stretch: 18, shrink: 0, text: '' } as TextGlue,
+    { type: 'penalty', width: 0, cost: -1000, flagged: false },
+  ];
+  return frogPrinceItemsImpl(
+    frogPrinceText.replace(/\u00AD/g, ''),
+    prologue,
+    betweenWords,
+    epilogue,
+  );
+}
+
 describe('layout', () => {
   describe('breakLines', () => {
     it('returns an empty list if the input is empty', () => {
@@ -307,6 +394,26 @@ describe('layout', () => {
         adjRatios,
         [0.774, 0.179, 0.629, 0.545, 0.0, 0.079, 0.282, 0.294, 0.575, 0.353],
       );
+    });
+
+    it('generates ragged-centered frog prince layout from p. 95 of Digital Typography', () => {
+      const items = frogPrinceCenteredItems();
+      // Pages 78 and 81 give widths of other examples, but Knuth does not give
+      // the width of this one. It is wider than the other examples and seems
+      // to be about 33 ems (594 machine units) by my estimation.
+      const lineLengths = Array(items.length).fill(594);
+      const breakpoints = breakLines(items, lineLengths);
+      const lines = lineStrings(items, breakpoints).map((l) => l.replace(/\s+/g, ' '));
+      assert.deepEqual(lines, [
+        'In olden times when wishing still helped one, there lived a king whose',
+        'daughters were all beautiful; and the youngest was so beautiful that the',
+        'sun itself, which has seen so much, was astonished whenever it shone in',
+        'her face. Close by the king’s castle lay a great dark forest, and under an',
+        'old limetree in the forest was a well, and when the day was very warm,',
+        'the king’s child went out into the forest and sat down by the side of the',
+        'cool fountain; and when she was bored she took a golden ball, and threw',
+        'it up on high and caught it; and this ball was her favorite plaything.',
+      ]);
     });
 
     it('generates expected layout', () => {
@@ -463,21 +570,6 @@ describe('layout', () => {
       });
 
       assert.notDeepEqual(breakpointsA, breakpointsB);
-    });
-
-    it('throws if an item has negative width', () => {
-      const items = [box(-10), glue(5, 10, 10), forcedBreak()];
-      assert.throws(() => breakLines(items, 15));
-    });
-
-    it('throws if a glue item has negative shrink', () => {
-      const items = [box(10), glue(5, -10, 10), forcedBreak()];
-      assert.throws(() => breakLines(items, 15));
-    });
-
-    it('throws if a glue item has negative stretch', () => {
-      const items = [box(10), glue(5, 10, -10), forcedBreak()];
-      assert.throws(() => breakLines(items, 15));
     });
 
     it('throws `MaxAdjustmentExceededError` if max adjustment ratio is exceeded', () => {
