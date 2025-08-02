@@ -148,6 +148,14 @@ export function breakLines(
     return [];
   }
 
+  const hasNegativeValues = items.some((it) => {
+    if (it.type === 'box' || it.type === 'penalty') {
+      return it.width < 0;
+    } else {
+      return it.width < 0 || it.stretch < 0 || it.shrink < 0;
+    }
+  });
+
   const opts_ = { ...defaultOptions, ...opts };
   const lineLen = (i: number) => (Array.isArray(lineLengths) ? lineLengths[i] : lineLengths);
   const currentMaxAdjustmentRatio = Math.min(
@@ -249,7 +257,24 @@ export function breakLines(
         );
       }
 
-      if (adjustmentRatio < MIN_ADJUSTMENT_RATIO || isForcedBreak(item)) {
+      // The optimization that removes an active node when $r < –1$ is safe only if
+      // all widths, stretches, and shrinks are non–negative, as explained on p.
+      // 1161:
+      //
+      //   "Note that Restriction 1 makes it legitimate to deactivate a node when
+      //    we discover that $r < -1$, since $r < -1$ is equivalent to $l_l < L_{ab}
+      //    - Z_{ab}$, therefore subsequent breakpoints $b' > b$ will have $L_{ab'}
+      //    - Z_{ab'} >= L_{ab} - Z_{ab}$. Thus it is not difficult to verify that
+      //    the algorithm does indeed find an optimal solution: Given any sequence
+      //    of feasible breakpoints $b_1 < ... < b_k$, we can prove by induction on
+      //    $j$ that the algorithm constructs a node for a feasible break at $j$,
+      //    with appropriate line numbers and fitness classifications, having no
+      //    more demerits than the given sequence does."
+      //
+      // Therefore, we deactivate an active node in the usual TeX way only when the
+      // paragraph satisfies Restriction 1 (i.e., no negative values). Forced breaks
+      // are always allowed to prune the list.
+      if ((!hasNegativeValues && adjustmentRatio < MIN_ADJUSTMENT_RATIO) || isForcedBreak(item)) {
         // Items from `a` to `b` cannot fit on one line.
         active.delete(a);
         lastActive = a;
@@ -297,6 +322,35 @@ export function breakLines(
         // then we don't want to include the width of those when calculating the
         // width of lines starting after this breakpoint. This is because when
         // rendering we ignore glue/penalty items at the start of lines.
+        //
+        // Knuth’s original algorithm (TeX) keeps running sums of width / stretch /
+        // shrink from the *start* of the paragraph up to every breakpoint. The
+        // values for an individual line are then obtained simply by subtracting the
+        // two totals:
+        //
+        //      lineWidth = Σwidth[b] − Σwidth[a]
+        //      lineStretch/shrink likewise
+        //
+        // This is only correct if there is at least one **box** item between the
+        // two breakpoints; otherwise the subtraction would leave out the glue and
+        // penalties that precede the first box of the new line. For efficiency TeX
+        // therefore imposes Restriction 2 (p. 1156): two legal breakpoints may not
+        // be separated solely by glue and/or ordinary penalties.
+        //
+        // Instead of enforcing Restriction 2 we take a different approach: whenever
+        // we create a node for a candidate breakpoint `b` we *look ahead* until we
+        // reach the next box (or an unbreakable penalty) and add the intervening
+        // width/stretch/shrink to the node’s accumulated totals. Hence
+        //
+        //      node.totalWidth   = Σwidth up to the first box of the next line
+        //      node.totalStretch = …
+        //      node.totalShrink  = …
+        //
+        // With these augmented totals the simple subtraction still yields the correct
+        // figures even if two successive breakpoints are separated only by glue.
+        // The price is a tiny extra scan per node, which is acceptable for the sizes
+        // we deal with here and keeps the rest of the algorithm (and the input it can
+        // accept) simple.
         let widthToNextBox = 0;
         let shrinkToNextBox = 0;
         let stretchToNextBox = 0;

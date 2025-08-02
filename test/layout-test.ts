@@ -483,6 +483,35 @@ describe('layout', () => {
       assert.deepEqual(breakpoints, [0, 3, 4]);
     });
 
+    it('does not lose the optimum when negative values are present', () => {
+      //
+      // Line-length = 10
+      //
+      //  ┌─12─┐○───────○┌─-2─┐○────○┌──9──┐○──────○
+      //   box   g(0,-2)  box   g(0)  box    g(0,+3)
+      //
+      // The best break sequence is 0-3-6:
+      //
+      //   • first line  = 12 + (-2) = 10  (perfect fit, r = 0)
+      //   • second line = 9 + stretch(3)  (r = 1/3)
+      //
+      // Without Restriction-1 guarding the optimization, the active node for the
+      // beginning of the paragraph is thrown away at breakpoint 1 (r = –∞), and the
+      // algorithm therefore ends up with 0-1-6 instead.
+      //
+      const items: InputItem[] = [
+        { type: 'box', width: 12 },
+        { type: 'glue', width: 0, stretch: 0, shrink: 2 },
+        { type: 'box', width: -2 },
+        { type: 'glue', width: 0, stretch: 0, shrink: 0 },
+        { type: 'box', width: 9 },
+        { type: 'glue', width: 0, stretch: 3, shrink: 0 },
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, 10);
+      assert.deepEqual(breakpoints, [0, 3, 6]);
+    });
+
     [
       {
         items: [box(10), glue(10, 10, 10), box(10), forcedBreak()],
