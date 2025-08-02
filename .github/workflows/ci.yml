@@ -2,7 +2,8 @@ name: Continuous integration
 on: pull_request
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    # Pinned to Ubuntu 22.04 to resolve a Chrome sandbox issue with Ubuntu 24.04.
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout
       uses: actions/checkout@v4
