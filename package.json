@@ -22,7 +22,7 @@
     "karma": "^6.4.0",
     "karma-chrome-launcher": "^3.1.1",
     "karma-mocha": "^2.0.1",
-    "mocha": "^10.0.0",
+    "mocha": "^11.7.1",
     "prettier": "^2.7.1",
     "puppeteer": "^22.15.0",
     "ts-loader": "^9.3.1",
