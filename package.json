@@ -1,6 +1,6 @@
 {
   "name": "tex-linebreak",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "main": "dist/lib.js",
   "types": "dist/types/src/index.d.ts",
   "license": "MIT",
