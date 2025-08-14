@@ -44,14 +44,15 @@ export function layoutItemsFromString(
   const hyphenWidth = measureFn('-');
   const isSpace = (word: string) => /\s/.test(word.charAt(0));
 
-  const shrink = Math.max(0, spaceWidth - 2);
+  const stretch = 0.5 * spaceWidth;
+  const shrink = 0.333 * spaceWidth;
   chunks.forEach((w) => {
     if (isSpace(w)) {
       const g: TextGlue = {
         type: 'glue',
         width: spaceWidth,
         shrink,
-        stretch: spaceWidth * 1.5,
+        stretch: stretch,
         text: w,
       };
       items.push(g);
