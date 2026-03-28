@@ -333,9 +333,9 @@ describe('layout', () => {
       assert.deepEqual(breakpoints, []);
     });
 
-    it('returns just the initial breakpoint if there are no legal breakpoints', () => {
-      const breakpoints = breakLines([box(10)], 100);
-      assert.deepEqual(breakpoints, [0]);
+    it('returns initial and final breakpoints for a single-box paragraph', () => {
+      const breakpoints = breakLines([box(10), forcedBreak()], 100);
+      assert.deepEqual(breakpoints, [0, 1]);
     });
 
     it('generates narrow frog prince layout from p. 81 of Digital Typography', () => {
@@ -585,7 +585,7 @@ describe('layout', () => {
         }
         return result;
       };
-      const items = wordSoup(100);
+      const items = [...wordSoup(100), forcedBreak()];
       const lineWidth = 50;
 
       // Break lines without contrasting tightess penalty.
@@ -605,6 +605,12 @@ describe('layout', () => {
       const items = [box(10), glue(5, 10, 10), box(10), forcedBreak()];
       const opts = { maxAdjustmentRatio: 1 };
       assert.throws(() => breakLines(items, 100, opts), MaxAdjustmentExceededError);
+    });
+
+    it('requires a terminal forced break', () => {
+      const items = [box(10), glue(5, 1, 1), box(10)];
+
+      assert.throws(() => breakLines(items, 12), /forced break/i);
     });
   });
 

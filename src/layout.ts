@@ -148,6 +148,12 @@ export function breakLines(
     return [];
   }
 
+  if (!isForcedBreak(items[items.length - 1])) {
+    // Knuth-Plass assumes that at the very end of a paragraph a forced break
+    // is appended after the finishing glue.
+    throw new Error('Paragraph items must end with a forced break');
+  }
+
   const hasNegativeValues = items.some((it) => {
     if (it.type === 'box' || it.type === 'penalty') {
       return it.width < 0;
