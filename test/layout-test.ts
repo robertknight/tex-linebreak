@@ -601,6 +601,34 @@ describe('layout', () => {
       assert.notDeepEqual(breakpointsA, breakpointsB);
     });
 
+    it('keeps competing fitness-class paths at the same breakpoint', () => {
+      const items = [
+        box(7),
+        glue(6, 3, 5),
+        box(23),
+        glue(6, 3, 5),
+        box(13),
+        glue(6, 3, 5),
+        box(15),
+        glue(6, 3, 5),
+        box(15),
+        glue(6, 3, 5),
+        box(16),
+        glue(6, 3, 5),
+        box(24),
+        forcedBreak(),
+      ];
+
+      assert.deepEqual(
+        breakLines(items, 53, {
+          adjacentLooseTightPenalty: 10000,
+          initialMaxAdjustmentRatio: 5,
+          maxAdjustmentRatio: null,
+        }),
+        [0, 5, 9, 13],
+      );
+    });
+
     it('throws `MaxAdjustmentExceededError` if max adjustment ratio is exceeded', () => {
       const items = [box(10), glue(5, 10, 10), box(10), forcedBreak()];
       const opts = { maxAdjustmentRatio: 1 };

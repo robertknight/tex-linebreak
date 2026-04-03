@@ -227,7 +227,7 @@ export function breakLines(
     // Update the set of active nodes.
     let lastActive: Node | null = null;
 
-    const feasible: Node[] = [];
+    const bestByState = new Map<number, Node>();
     active.forEach((a) => {
       // Compute adjustment ratio from `a` to `b`.
       let adjustmentRatio = 0;
@@ -379,20 +379,16 @@ export function breakLines(
           totalDemerits: a.totalDemerits + demerits,
           prev: a,
         };
-        feasible.push(node);
+        const stateKey = node.line * 4 + fitness;
+        const bestNode = bestByState.get(stateKey);
+        if (!bestNode || node.totalDemerits < bestNode.totalDemerits) {
+          bestByState.set(stateKey, node);
+        }
       }
     });
 
     // Add feasible breakpoint with lowest score to active set.
-    if (feasible.length > 0) {
-      let bestNode = feasible[0];
-      for (let f of feasible) {
-        if (f.totalDemerits < bestNode.totalDemerits) {
-          bestNode = f;
-        }
-      }
-      active.add(bestNode);
-    }
+    bestByState.forEach((node) => active.add(node));
 
     // Handle situation where there is no way to break the paragraph without
     // shrinking or stretching a line beyond [-1, currentMaxAdjustmentRatio].
