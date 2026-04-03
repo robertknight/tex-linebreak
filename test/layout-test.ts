@@ -400,8 +400,9 @@ describe('layout', () => {
       const items = frogPrinceCenteredItems();
       // Pages 78 and 81 give widths of other examples, but Knuth does not give
       // the width of this one. It is wider than the other examples and seems
-      // to be about 33 ems (594 machine units) by my estimation.
-      const lineLengths = Array(items.length).fill(594);
+      // to be about 33 ems. 593 machine units is the closest width to that
+      // estimate which preserves the line breaks shown in the book.
+      const lineLengths = Array(items.length).fill(593);
       const breakpoints = breakLines(items, lineLengths);
       const lines = lineStrings(items, breakpoints).map((l) => l.replace(/\s+/g, ' '));
       assert.deepEqual(lines, [
@@ -633,6 +634,14 @@ describe('layout', () => {
       const items = [box(10), glue(5, 10, 10), box(10), forcedBreak()];
       const opts = { maxAdjustmentRatio: 1 };
       assert.throws(() => breakLines(items, 100, opts), MaxAdjustmentExceededError);
+    });
+
+    it('treats an exact-fit line with rigid glue as having zero adjustment', () => {
+      const items = [box(10), glue(5, 0, 0), box(10), forcedBreak()];
+      const breakpoints = breakLines(items, 25);
+
+      assert.deepEqual(breakpoints, [0, 3]);
+      assert.deepEqual(adjustmentRatios(items, 25, breakpoints), [0]);
     });
 
     it('does not carry a breakpoint penalty width into the next line', () => {

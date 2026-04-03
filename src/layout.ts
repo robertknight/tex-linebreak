@@ -247,11 +247,12 @@ export function breakLines(
         actualLen += item.width;
       }
 
-      // nb. Division by zero produces `Infinity` here, which is what we want.
       if (actualLen < idealLen) {
         adjustmentRatio = (idealLen - actualLen) / lineStretch;
-      } else {
+      } else if (actualLen > idealLen) {
         adjustmentRatio = (idealLen - actualLen) / lineShrink;
+      } else {
+        adjustmentRatio = 0;
       }
       if (adjustmentRatio > currentMaxAdjustmentRatio) {
         // In case we need to try again later with a higher
@@ -524,8 +525,10 @@ export function adjustmentRatios(
     let adjustmentRatio;
     if (actualWidth < idealWidth) {
       adjustmentRatio = (idealWidth - actualWidth) / lineStretch;
-    } else {
+    } else if (actualWidth > idealWidth) {
       adjustmentRatio = (idealWidth - actualWidth) / lineShrink;
+    } else {
+      adjustmentRatio = 0;
     }
 
     ratios.push(adjustmentRatio);
