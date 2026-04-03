@@ -360,7 +360,9 @@ export function breakLines(
         let widthToNextBox = 0;
         let shrinkToNextBox = 0;
         let stretchToNextBox = 0;
-        for (let bp = b; bp < items.length; bp++) {
+        // A penalty's width (e.g. a hyphen) is charged to the line that ends
+        // here, not the next line. Skip it so it doesn't inflate the totals.
+        for (let bp = b + (item.type === 'penalty' ? 1 : 0); bp < items.length; bp++) {
           const item = items[bp];
           if (item.type === 'box') {
             break;
