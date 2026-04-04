@@ -693,6 +693,39 @@ describe('layout', () => {
       assert.deepEqual(breakLines(items, 12), [0, 5, 8]);
     });
 
+    it('does not charge penalty width for an empty span between consecutive penalties', () => {
+      // When two consecutive feasible breakpoints are both penalties with only
+      // glue between them, lineStartIndex advances past the second penalty,
+      // making the span empty. lineMetrics must not add the penalty width for
+      // that empty line, matching what adjustmentRatios/positionItems compute.
+      const items = [
+        box(5),
+        penalty(0, 0, false), // breakpoint 1
+        glue(1, 1, 1),
+        penalty(3, 0, false), // breakpoint 3: nonzero penalty width
+        box(5),
+        glue(1, 1, 1),
+        forcedBreak(),
+      ];
+
+      const breakpoints = breakLines(items, 10, { maxAdjustmentRatio: null });
+      const ratios = adjustmentRatios(items, 10, breakpoints);
+
+      // Every ratio must be finite: an empty line with phantom penalty width
+      // would produce a huge positive ratio because the "actual" width (just
+      // the penalty) is much less than the line length.
+      for (const r of ratios) {
+        assert.ok(Number.isFinite(r), `expected finite ratio, got ${r}`);
+      }
+    });
+
+    it('treats an exact-fit line with rigid glue as having zero adjustment', () => {
+      const items = [box(10), glue(5, 0, 0), box(10), forcedBreak()];
+      const breakpoints = breakLines(items, 25);
+
+      assert.deepEqual(breakpoints, [0, 3]);
+      assert.deepEqual(adjustmentRatios(items, 25, breakpoints), [0]);
+    });
     it('requires a terminal forced break', () => {
       const items = [box(10), glue(5, 1, 1), box(10)];
 

@@ -197,6 +197,22 @@ export function breakLines(
     }
   });
 
+  const prefixSums = items.reduce(
+    (sums, item, i) => {
+      sums.boxWidth[i + 1] = sums.boxWidth[i] + (item.type === 'box' ? item.width : 0);
+      sums.glueWidth[i + 1] = sums.glueWidth[i] + (item.type === 'glue' ? item.width : 0);
+      sums.glueStretch[i + 1] = sums.glueStretch[i] + (item.type === 'glue' ? item.stretch : 0);
+      sums.glueShrink[i + 1] = sums.glueShrink[i] + (item.type === 'glue' ? item.shrink : 0);
+      return sums;
+    },
+    {
+      boxWidth: new Array<number>(items.length + 1).fill(0),
+      glueWidth: new Array<number>(items.length + 1).fill(0),
+      glueStretch: new Array<number>(items.length + 1).fill(0),
+      glueShrink: new Array<number>(items.length + 1).fill(0),
+    },
+  );
+
   const opts_ = { ...defaultOptions, ...opts };
   const lineLen = (i: number) => (Array.isArray(lineLengths) ? lineLengths[i] : lineLengths);
   const currentMaxAdjustmentRatio = Math.min(
@@ -208,12 +224,6 @@ export function breakLines(
     index: number; // Index in `items`.
     line: number; // Line number.
     fitness: number;
-    // Sum of `width` up to first box or forced break after this break.
-    totalWidth: number;
-    // Sum of `stretch` up to first box or forced break after this break.
-    totalStretch: number;
-    // Sum of `shrink` up to first box or forced break after this break.
-    totalShrink: number;
     // Minimum sum of demerits up this break.
     totalDemerits: number;
     prev: null | Node;
@@ -221,46 +231,83 @@ export function breakLines(
 
   const active = new Set<Node>();
 
+  // nextContent[i] is the index of the first content item at or after
+  // position i (O(n) right-to-left precomputation). The sentinel at
+  // items.length means "no content found".
+  const nextContent = new Array<number>(items.length + 1);
+  nextContent[items.length] = items.length;
+  for (let i = items.length - 1; i >= 0; i--) {
+    nextContent[i] = lineStartsWithContent(items[i]) ? i : nextContent[i + 1];
+  }
+
   // Add initial active node for beginning of paragraph.
   active.add({
     index: PARAGRAPH_START,
     line: 0,
     // Fitness is ignored for this node.
     fitness: 0,
-    totalWidth: 0,
-    totalStretch: 0,
-    totalShrink: 0,
     totalDemerits: 0,
     prev: null,
   });
 
-  // Sum of `width` of items up to current item.
-  let sumWidth = 0;
-  // Sum of `stretch` of glue items up to current item.
-  let sumStretch = 0;
-  // Sum of `shrink` of glue items up to current item.
-  let sumShrink = 0;
+  // Compute the width, stretch and shrink of items in a line between two
+  // breakpoints, excluding glue and penalty items at the start of the line.
+  // When rendering we ignore such items at the start of lines.
+  //
+  // Knuth's original algorithm (TeX) keeps running sums of width / stretch /
+  // shrink from the *start* of the paragraph up to every breakpoint. The values
+  // for an individual line are then obtained simply by subtracting the two
+  // totals:
+  //
+  //      lineWidth = Sum(width[0..b]) - Sum(width[0..a])
+  //      lineStretch/shrink likewise
+  //
+  // This is only correct if there is at least one box item between the two
+  // breakpoints; otherwise the subtraction would leave out the glue and
+  // penalties that precede the first box of the new line. For efficiency TeX
+  // therefore imposes Restriction 2 (p. 1156): two legal breakpoints may not be
+  // separated solely by glue and/or ordinary penalties.
+  //
+  // Instead of enforcing Restriction 2 we use `nextContent` to find the first
+  // content item on each line, then compute metrics from that point using
+  // prefix sums. This naturally excludes leading glue and penalties, so the
+  // subtraction yields correct figures even if two successive breakpoints are
+  // separated only by glue.
+  const lineMetrics = (startBreakpoint: number, endBreakpoint: number) => {
+    const rawStart =
+      startBreakpoint === PARAGRAPH_START
+        ? nextContent[0]
+        : nextContent[startBreakpoint + (items[startBreakpoint].type === 'penalty' ? 1 : 0)];
+    const start = Math.min(rawStart, endBreakpoint + 1);
+
+    if (start > endBreakpoint) {
+      return { actualLen: 0, lineStretch: 0, lineShrink: 0 };
+    }
+
+    const interiorGlueStart = Math.min(start + 1, endBreakpoint);
+    const penaltyWidth = items[endBreakpoint].type === 'penalty' ? items[endBreakpoint].width : 0;
+
+    return {
+      actualLen:
+        prefixSums.boxWidth[endBreakpoint + 1] -
+        prefixSums.boxWidth[start] +
+        (prefixSums.glueWidth[endBreakpoint] - prefixSums.glueWidth[interiorGlueStart]) +
+        penaltyWidth,
+      lineStretch:
+        prefixSums.glueStretch[endBreakpoint] - prefixSums.glueStretch[interiorGlueStart],
+      lineShrink: prefixSums.glueShrink[endBreakpoint] - prefixSums.glueShrink[interiorGlueStart],
+    };
+  };
 
   let minAdjustmentRatioAboveThreshold = Infinity;
 
   for (let b = 0; b < items.length; b++) {
     const item = items[b];
 
-    // Determine if this is a feasible breakpoint and update `sumWidth`,
-    // `sumStretch` and `sumShrink`.
-    let canBreak = false;
-    if (item.type === 'box') {
-      sumWidth += item.width;
-    } else if (item.type === 'glue') {
-      canBreak = b > 0 && items[b - 1].type === 'box';
-      if (!canBreak) {
-        sumWidth += item.width;
-        sumShrink += item.shrink;
-        sumStretch += item.stretch;
-      }
-    } else if (item.type === 'penalty') {
-      canBreak = item.cost < MAX_COST;
-    }
+    // Determine if this is a feasible breakpoint.
+    const canBreak =
+      (item.type === 'glue' && b > 0 && items[b - 1].type === 'box') ||
+      (item.type === 'penalty' && item.cost < MAX_COST);
     if (!canBreak) {
       continue;
     }
@@ -272,15 +319,8 @@ export function breakLines(
     active.forEach((a) => {
       // Compute adjustment ratio from `a` to `b`.
       let adjustmentRatio = 0;
-      const lineShrink = sumShrink - a.totalShrink;
-      const lineStretch = sumStretch - a.totalStretch;
       const idealLen = lineLen(a.line);
-      let actualLen = sumWidth - a.totalWidth;
-
-      // Include width of penalty in line length if chosen as a breakpoint.
-      if (item.type === 'penalty') {
-        actualLen += item.width;
-      }
+      const { actualLen, lineStretch, lineShrink } = lineMetrics(a.index, b);
 
       if (actualLen < idealLen) {
         adjustmentRatio = (idealLen - actualLen) / lineStretch;
@@ -360,66 +400,10 @@ export function breakLines(
           demerits += opts_.adjacentLooseTightPenalty;
         }
 
-        // If this breakpoint is followed by glue or non-breakable penalty items
-        // then we don't want to include the width of those when calculating the
-        // width of lines starting after this breakpoint. This is because when
-        // rendering we ignore glue/penalty items at the start of lines.
-        //
-        // Knuth’s original algorithm (TeX) keeps running sums of width / stretch /
-        // shrink from the *start* of the paragraph up to every breakpoint. The
-        // values for an individual line are then obtained simply by subtracting the
-        // two totals:
-        //
-        //      lineWidth = Σwidth[b] − Σwidth[a]
-        //      lineStretch/shrink likewise
-        //
-        // This is only correct if there is at least one **box** item between the
-        // two breakpoints; otherwise the subtraction would leave out the glue and
-        // penalties that precede the first box of the new line. For efficiency TeX
-        // therefore imposes Restriction 2 (p. 1156): two legal breakpoints may not
-        // be separated solely by glue and/or ordinary penalties.
-        //
-        // Instead of enforcing Restriction 2 we take a different approach: whenever
-        // we create a node for a candidate breakpoint `b` we *look ahead* until we
-        // reach the next box (or an unbreakable penalty) and add the intervening
-        // width/stretch/shrink to the node’s accumulated totals. Hence
-        //
-        //      node.totalWidth   = Σwidth up to the first box of the next line
-        //      node.totalStretch = …
-        //      node.totalShrink  = …
-        //
-        // With these augmented totals the simple subtraction still yields the correct
-        // figures even if two successive breakpoints are separated only by glue.
-        // The price is a tiny extra scan per node, which is acceptable for the sizes
-        // we deal with here and keeps the rest of the algorithm (and the input it can
-        // accept) simple.
-        let widthToNextBox = 0;
-        let shrinkToNextBox = 0;
-        let stretchToNextBox = 0;
-        // A penalty's width (e.g. a hyphen) is charged to the line that ends
-        // here, not the next line. Skip it so it doesn't inflate the totals.
-        for (let bp = b + (item.type === 'penalty' ? 1 : 0); bp < items.length; bp++) {
-          const item = items[bp];
-          if (item.type === 'box') {
-            break;
-          }
-          if (item.type === 'penalty' && item.cost >= MAX_COST) {
-            break;
-          }
-          widthToNextBox += item.width;
-          if (item.type === 'glue') {
-            shrinkToNextBox += item.shrink;
-            stretchToNextBox += item.stretch;
-          }
-        }
-
         const node = {
           index: b,
           line: a.line + 1,
           fitness,
-          totalWidth: sumWidth + widthToNextBox,
-          totalShrink: sumShrink + shrinkToNextBox,
-          totalStretch: sumStretch + stretchToNextBox,
           totalDemerits: a.totalDemerits + demerits,
           prev: a,
         };
@@ -457,19 +441,10 @@ export function breakLines(
           index: b,
           line: lastActive!.line + 1,
           fitness: 1,
-          totalWidth: sumWidth,
-          totalShrink: sumShrink,
-          totalStretch: sumStretch,
           totalDemerits: lastActive!.totalDemerits + 1000,
           prev: lastActive!,
         });
       }
-    }
-
-    if (item.type === 'glue') {
-      sumWidth += item.width;
-      sumStretch += item.stretch;
-      sumShrink += item.shrink;
     }
   }
 
