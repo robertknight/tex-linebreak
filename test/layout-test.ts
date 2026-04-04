@@ -5,6 +5,8 @@ import {
   adjustmentRatios,
   breakLines,
   forcedBreak,
+  MAX_COST,
+  MIN_COST,
   positionItems,
   Box,
   Glue,
@@ -544,6 +546,193 @@ describe('layout', () => {
       assert.deepEqual(positionItems(items, 5, breakpoints), [
         { item: 2, line: 0, xOffset: 0, width: 5 },
       ]);
+    });
+
+    it(
+      'changes behavior when negative glue cannot rescue a later line',
+      () => {
+        // Under the old `hasNegativeValues` guard, the negative glue width
+        // disabled pruning and the algorithm fell back to [0, 4]. The new
+        // rule still prunes this irrecoverably overfull node and isolates the
+        // wide box at [0, 3, 4].
+        const items: InputItem[] = [
+          box(5),
+          glue(-1, 0, 0),
+          box(100),
+          glue(10, 10, 10),
+          forcedBreak(),
+        ];
+        const breakpoints = breakLines(items, 50);
+        assert.deepEqual(breakpoints, [0, 3, 4]);
+      },
+    );
+
+    it('does not keep splitting a negative-width fallback segment', () => {
+      // The first bailout at index 1 is intentional: the opening box is
+      // irrecoverably overfull. After that synthetic fallback node is created,
+      // pruning should not keep inserting more bailout breaks inside the same
+      // negative-width tail.
+      const items: InputItem[] = [
+        box(9),
+        glue(1, 4, 4),
+        glue(-1, 1, 4),
+        box(6),
+        box(6),
+        glue(-3, 2, 3),
+        glue(1, 4, 4),
+        box(-3),
+        penalty(2, 5, false),
+        box(9),
+        box(5),
+        penalty(2, 40, false),
+        glue(1, 1, 4),
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, 5, {
+        initialMaxAdjustmentRatio: 10,
+        maxAdjustmentRatio: null,
+      });
+      assert.deepEqual(breakpoints, [0, 1, 13]);
+    });
+
+    it(
+      'keeps the optimal breaks when negative penalty width rescues a line',
+      () => {
+        // line 0->3: box(11) + box(1) + penalty_width(-2) = 10   r = 0
+        // line 3->6: box(10) + glue(0, stretch=1000)             r \approx 0
+        //
+        // At breakpoint 1 (penalty(0)), the line from node 0 is
+        // box(11) = 11 > lineWidth(10) with zero shrink, giving r = -inf. A
+        // naive pruning rule would discard node 0 here. But the later
+        // breakpoint at penalty(-2) rescues the line: base width 12 plus
+        // penalty width -2 = 10. The suffix-minimum guard must keep node 0
+        // alive.
+        const items: InputItem[] = [
+          box(11),
+          penalty(0, 0, false),
+          box(1),
+          penalty(-2, 0, false),
+          box(10),
+          glue(0, 0, 1000),
+          forcedBreak(),
+        ];
+        const breakpoints = breakLines(items, 10);
+        assert.deepEqual(breakpoints, [0, 3, 6]);
+      },
+    );
+
+    it(
+      'keeps the optimal breaks when interior negative glue rescues a line',
+      () => {
+        // At breakpoint 1, the line from node 0 is overfull: box(11) > 10.
+        // A later ordinary breakpoint is still viable because the interior
+        // glue(-4) and box(3) bring the total back to 10.
+        const items: InputItem[] = [
+          box(11),
+          penalty(0, 0, false),
+          glue(-4, 0, 0),
+          box(3),
+          penalty(0, 0, false),
+          box(10),
+          forcedBreak(),
+        ];
+        const breakpoints = breakLines(items, 10);
+        assert.deepEqual(breakpoints, [0, 4, 6]);
+      },
+    );
+
+    it(
+      'keeps the optimal breaks when pre-break negative content rescues a line',
+      () => {
+        // box(11) + glue(-2) = 9 at the forced break -> single line [0, 3].
+        // At penalty(0) (index 1), the line width is 11 > 10, but the
+        // negative glue before the forced break brings it to 9 < 10.
+        const items: InputItem[] = [
+          box(11),
+          penalty(0, 0, false),
+          glue(-2, 0, 0),
+          forcedBreak(),
+        ];
+        const breakpoints = breakLines(items, 10);
+        assert.deepEqual(breakpoints, [0, 3]);
+      },
+    );
+
+    it(
+      'does not prune when a forced break has a negative penalty width',
+      () => {
+        // box(11) + box(1) + penalty_width(-2) = 10 at the forced break.
+        // At penalty(0) (index 1), the line width is 11 > 10, but the
+        // forced break's negative width makes the line exactly 10.
+        const items: InputItem[] = [
+          box(11),
+          penalty(0, 0, false),
+          box(1),
+          penalty(-2, MIN_COST, false),
+        ];
+        const breakpoints = breakLines(items, 10);
+        assert.deepEqual(breakpoints, [0, 3]);
+      },
+    );
+
+    it('does not prune when glue shrink is negative', () => {
+      // The suffix-minimum floor argument assumes shrink cannot increase line
+      // width. Negative shrink breaks that assumption, so pruning must be
+      // disabled even when widths and stretch are otherwise ordinary.
+      //
+      // With pruning disabled, the valid solution is a single line [0, 6].
+      // If pruning were enabled, node 0 would be discarded at breakpoint 1
+      // and the algorithm would fall back to [0, 1, 6].
+      const items: InputItem[] = [
+        box(2),
+        penalty(0, 0, false),
+        glue(0, -5, 0),
+        box(0),
+        penalty(0, 0, false),
+        glue(0, 0, 0),
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, 1);
+      assert.deepEqual(breakpoints, [0, 6]);
+    });
+
+    it('does not prune when the suffix-floor proof assumptions do not hold', () => {
+      // In this case a later negative-width glue can still rescue the line, so
+      // pruning at the earlier breakpoint would discard the valid path
+      // [0, 1, 5].
+      const items: InputItem[] = [
+        box(7),
+        penalty(3, 54, false),
+        penalty(-3, 26, false),
+        glue(-6, 0, 1),
+        box(11),
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, [10, 10, 11], {
+        initialMaxAdjustmentRatio: 20,
+      });
+      assert.deepEqual(breakpoints, [0, 1, 5]);
+    });
+
+    it('does not prune when a later legal penalty can still rescue the line', () => {
+      // A later legal penalty contributes negative width before the forced
+      // break. Pruning at the earlier breakpoint would incorrectly discard the
+      // valid path [0, 1, 8].
+      const items: InputItem[] = [
+        box(11),
+        glue(3, 1, 0),
+        penalty(-4, 42, false),
+        { type: 'penalty', width: -3, cost: MAX_COST, flagged: false },
+        glue(2, 0, 1),
+        { type: 'penalty', width: -2, cost: MAX_COST, flagged: false },
+        box(2),
+        glue(3, 4, 3),
+        penalty(-2, MIN_COST, false),
+      ];
+      const breakpoints = breakLines(items, [11, 4, 3], {
+        initialMaxAdjustmentRatio: 20,
+      });
+      assert.deepEqual(breakpoints, [0, 1, 8]);
     });
 
     [
