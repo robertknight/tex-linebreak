@@ -104,10 +104,44 @@ export const MIN_COST = -1000;
 export const MAX_COST = 1000;
 
 const MIN_ADJUSTMENT_RATIO = -1;
-const PARAGRAPH_START = -1;
+export const PARAGRAPH_START = -1;
 
 function isForcedBreak(item: InputItem) {
   return item.type === 'penalty' && item.cost <= MIN_COST;
+}
+
+function lineStartsWithContent(item: InputItem) {
+  return item.type === 'box' || (item.type === 'penalty' && item.cost >= MAX_COST);
+}
+
+function lineStartIndex(items: InputItem[], breakpoint: number) {
+  let start;
+  if (breakpoint === PARAGRAPH_START) {
+    start = 0;
+  } else {
+    // A penalty's width (e.g. a hyphen) is charged to the line that ends
+    // here, not the next line. Skip it so it doesn't inflate the next line.
+    start = breakpoint + (items[breakpoint].type === 'penalty' ? 1 : 0);
+  }
+
+  while (start < items.length && !lineStartsWithContent(items[start])) {
+    start++;
+  }
+
+  return start;
+}
+
+/**
+ * Compute the start index for the content of a line, clamped so it never
+ * exceeds `endBreakpoint + 1`. When the result equals `endBreakpoint + 1`,
+ * the line span is empty.
+ */
+export function lineContentStart(
+  items: InputItem[],
+  startBreakpoint: number,
+  endBreakpoint: number,
+): number {
+  return Math.min(lineStartIndex(items, startBreakpoint), endBreakpoint + 1);
 }
 
 const defaultOptions: Options = {
@@ -509,7 +543,11 @@ export function adjustmentRatios(
     let lineShrink = 0;
     let lineStretch = 0;
 
-    const start = b === 0 ? breakpoints[b] : breakpoints[b] + 1;
+    const start = lineContentStart(
+      items,
+      b === 0 ? PARAGRAPH_START : breakpoints[b],
+      breakpoints[b + 1],
+    );
     for (let p = start; p <= breakpoints[b + 1]; p++) {
       const item = items[p];
       if (item.type === 'box') {
@@ -564,7 +602,11 @@ export function positionItems(
     // item in a line.
     const adjustmentRatio = Math.max(adjRatios[b], MIN_ADJUSTMENT_RATIO);
     let xOffset = 0;
-    const start = b === 0 ? breakpoints[b] : breakpoints[b] + 1;
+    const start = lineContentStart(
+      items,
+      b === 0 ? PARAGRAPH_START : breakpoints[b],
+      breakpoints[b + 1],
+    );
 
     for (let p = start; p <= breakpoints[b + 1]; p++) {
       const item = items[p];

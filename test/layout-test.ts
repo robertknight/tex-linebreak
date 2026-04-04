@@ -513,6 +513,39 @@ describe('layout', () => {
       assert.deepEqual(breakpoints, [0, 3, 6]);
     });
 
+    it('ignores repeated leading glue after a breakpoint', () => {
+      const items: InputItem[] = [
+        box(5),
+        penalty(0, 0, false),
+        glue(10, 0, 0),
+        glue(-10, 0, 0),
+        box(5),
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, 5);
+      assert.deepEqual(breakpoints, [0, 1, 5]);
+      assert.deepEqual(adjustmentRatios(items, 5, breakpoints), [0, 0]);
+      assert.deepEqual(positionItems(items, 5, breakpoints), [
+        { item: 0, line: 0, xOffset: 0, width: 5 },
+        { item: 4, line: 1, xOffset: 0, width: 5 },
+      ]);
+    });
+
+    it('ignores leading penalty and glue at the start of the paragraph', () => {
+      const items: InputItem[] = [
+        penalty(0, 0, false),
+        glue(5, 0, 0),
+        box(5),
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, 5);
+      assert.deepEqual(breakpoints, [0, 3]);
+      assert.deepEqual(adjustmentRatios(items, 5, breakpoints), [0]);
+      assert.deepEqual(positionItems(items, 5, breakpoints), [
+        { item: 2, line: 0, xOffset: 0, width: 5 },
+      ]);
+    });
+
     [
       {
         items: [box(10), glue(10, 10, 10), box(10), forcedBreak()],

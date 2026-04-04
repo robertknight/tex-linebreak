@@ -80,6 +80,15 @@ describe('html', () => {
       });
     });
 
+    it('does not stretch leading whitespace skipped at the start of a line', () => {
+      para.textContent = '   This is some test content that should be wrapped';
+
+      justifyContent(para);
+
+      const firstSpan = para.querySelector('span')!;
+      assert.isFalse(firstSpan.textContent!.startsWith(' '));
+    });
+
     it("disables the browser's own line wrapping", () => {
       justifyContent(para);
       assert.equal(para.style.whiteSpace, 'nowrap');
@@ -120,7 +129,9 @@ describe('html', () => {
       justifyContent(para);
       stripSpacing(para);
 
-      assert.equal(para.innerHTML, '<span style="">This is </span><b><span style="">some </span><br><span style="">text</span></b><span style=""> with </span><br><i>various styles</i>');
+      assert.deepEqual(extractLines(para), ['This is some', 'text with', 'various styles']);
+      assert.equal(para.querySelector('b')!.textContent, 'some text');
+      assert.equal(para.querySelector('i')!.textContent, 'various styles');
     });
 
     it('applies hyphenation', () => {
