@@ -1,8 +1,19 @@
 {
   "name": "tex-linebreak",
   "version": "0.9.0",
-  "main": "dist/lib.js",
-  "types": "dist/types/src/index.d.ts",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "unpkg": "dist/lib.js",
+  "jsdelivr": "dist/lib.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "license": "MIT",
   "author": {
     "name": "Robert Knight",
@@ -13,35 +24,29 @@
     "url": "https://github.com/robertknight/tex-linebreak.git"
   },
   "devDependencies": {
-    "@types/chai": "^4.3.1",
-    "@types/mocha": "^9.1.1",
-    "@types/node": "^20.10.1",
-    "chai": "^6.2.2",
+    "@types/node": "^25.6.0",
+    "@vitest/browser-playwright": "^4.1.2",
     "hyphenation.en-us": "^0.2.1",
     "hypher": "^0.2.5",
-    "karma": "^6.4.0",
-    "karma-chrome-launcher": "^3.1.1",
-    "karma-mocha": "^2.0.1",
-    "mocha": "^11.7.3",
-    "prettier": "^2.7.1",
-    "puppeteer": "^22.15.0",
-    "ts-loader": "^9.3.1",
-    "typescript": "^5.3.2",
-    "webpack": "^5.104.1",
-    "webpack-cli": "^4.10.0",
+    "playwright": "^1.59.1",
+    "prettier": "^3.8.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.1.2",
     "xorshift": "^1.2.0"
   },
   "files": [
     "dist/**"
   ],
   "scripts": {
-    "build-prod": "webpack --mode production && yarn types",
-    "build-dev": "webpack --mode development",
-    "format": "prettier --write src/*.ts src/**/*.ts test/**/*.ts",
-    "prepublish": "yarn build-prod",
-    "types": "tsc --declaration --emitDeclarationOnly --outDir dist/types",
-    "test": "webpack --mode development --config webpack-test.config.js && karma start --single-run",
-    "watch": "webpack --watch --mode development"
+    "build": "tsc --noEmit && vite build && vite build -c vite.hyphens.config.ts",
+    "dev": "vite dev --open /src/demos/layout.html",
+    "lint": "prettier --check '**/*.ts'",
+    "lint:fix": "prettier --write '**/*.ts'",
+    "prepublishOnly": "yarn build",
+    "test": "vitest run",
+    "watch": "vite build --watch"
   },
   "dependencies": {}
 }

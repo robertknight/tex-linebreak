@@ -1,4 +1,4 @@
-import { assert } from 'chai';
+import { assert, describe, it, beforeEach, afterEach } from 'vitest';
 import enUsPatterns from 'hyphenation.en-us';
 
 import { justifyContent } from '../src/html';
@@ -9,16 +9,16 @@ const hyphenate = createHyphenator(enUsPatterns);
 function extractLines(el: HTMLElement) {
   const tmpEl = document.createElement('span');
   tmpEl.innerHTML = el.innerHTML.replace(/<br>/g, '--');
-  return tmpEl.textContent!.split('--').map(s => s.trim());
+  return tmpEl.textContent!.split('--').map((s) => s.trim());
 }
 
 function stripSpacing(el: HTMLElement) {
   const spans = Array.from(el.querySelectorAll('span'));
-  spans.forEach(s => s.style.wordSpacing = '');
+  spans.forEach((s) => (s.style.wordSpacing = ''));
 }
 
 function trimLineSpans(spans: HTMLElement[]) {
-  spans.forEach(span => {
+  spans.forEach((span) => {
     const text = span.childNodes[0];
     text.nodeValue = text.nodeValue!.trim();
   });
@@ -44,19 +44,14 @@ describe('html', () => {
     });
 
     afterEach(() => {
-      cleanupEls.forEach(el => el.remove());
+      cleanupEls.forEach((el) => el.remove());
     });
 
     it('adds line breaks to existing text', () => {
       justifyContent(para);
 
       const lines = extractLines(para);
-      assert.deepEqual(lines, [
-        'This is some',
-        'test content',
-        'that should be',
-        'wrapped',
-      ]);
+      assert.deepEqual(lines, ['This is some', 'test content', 'that should be', 'wrapped']);
     });
 
     it('uses word-spacing to adjust lines to fill available space', () => {
@@ -67,14 +62,17 @@ describe('html', () => {
       // accounted for when justifying the text, but does count towards the
       // width reported by `getBoundingClientRect`.
       trimLineSpans(spans);
-      const lineWidths = spans.map(s => s.getBoundingClientRect().width);
+      const lineWidths = spans.map((s) => s.getBoundingClientRect().width);
 
       // Check that every line is the expected width.
       const expectedWidth = parseInt(getComputedStyle(para).width!);
-      assert.deepEqual(lineWidths, lineWidths.map(() => expectedWidth));
+      assert.deepEqual(
+        lineWidths,
+        lineWidths.map(() => expectedWidth),
+      );
 
       // Check that this has been achieved by adjusting `word-spacing`.
-      spans.forEach(span => {
+      spans.forEach((span) => {
         const extraSpacing = parseInt(span.style.wordSpacing!);
         assert.notEqual(extraSpacing, 0);
       });
@@ -168,7 +166,6 @@ describe('html', () => {
       para.innerHTML = `foo
       <span class="block" style="display: inline-block">${blockContent}</span>
       bar`;
-      const initialHtml = para.innerHTML;
 
       justifyContent(para);
 
@@ -183,7 +180,7 @@ describe('html', () => {
       'paddingRight',
       'borderRightWidth',
       'marginRight',
-    ].forEach(property => {
+    ].forEach((property) => {
       it(`accounts for '${property}' property on inline children`, () => {
         para.innerHTML = 'test with <b>inline child</b> and some other text';
         justifyContent(para);

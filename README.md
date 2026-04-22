@@ -177,18 +177,20 @@ annotations.
 For working code showing different ways to use this library, see [the
 demos](src/demos/). You can build and run the demos using:
 
-```
-npm i -g http-server
-
+```sh
 git clone https://github.com/robertknight/tex-linebreak.git
 cd tex-linebreak
 yarn
-yarn build-dev
-http-server -c-1
+yarn dev
 ```
 
-Then navigate to http://127.0.0.1:8080/src/demos/layout.html (note that
-http-server may choose a different port).
+The test suite runs in a real Chromium browser via Playwright. Install the
+browser once, then run the tests:
+
+```sh
+yarn playwright install chromium
+yarn test
+```
 
 ## Caveats
 

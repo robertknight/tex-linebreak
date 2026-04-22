@@ -1,4 +1,4 @@
-import { assert } from 'chai';
+import { assert, describe, it, beforeEach, afterEach } from 'vitest';
 
 import { textNodesInRange } from '../../src/util/range';
 
