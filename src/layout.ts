@@ -104,9 +104,44 @@ export const MIN_COST = -1000;
 export const MAX_COST = 1000;
 
 const MIN_ADJUSTMENT_RATIO = -1;
+export const PARAGRAPH_START = -1;
 
 function isForcedBreak(item: InputItem) {
   return item.type === 'penalty' && item.cost <= MIN_COST;
+}
+
+function lineStartsWithContent(item: InputItem) {
+  return item.type === 'box' || (item.type === 'penalty' && item.cost >= MAX_COST);
+}
+
+function lineStartIndex(items: InputItem[], breakpoint: number) {
+  let start;
+  if (breakpoint === PARAGRAPH_START) {
+    start = 0;
+  } else {
+    // A penalty's width (e.g. a hyphen) is charged to the line that ends
+    // here, not the next line. Skip it so it doesn't inflate the next line.
+    start = breakpoint + (items[breakpoint].type === 'penalty' ? 1 : 0);
+  }
+
+  while (start < items.length && !lineStartsWithContent(items[start])) {
+    start++;
+  }
+
+  return start;
+}
+
+/**
+ * Compute the start index for the content of a line, clamped so it never
+ * exceeds `endBreakpoint + 1`. When the result equals `endBreakpoint + 1`,
+ * the line span is empty.
+ */
+export function lineContentStart(
+  items: InputItem[],
+  startBreakpoint: number,
+  endBreakpoint: number,
+): number {
+  return Math.min(lineStartIndex(items, startBreakpoint), endBreakpoint + 1);
 }
 
 const defaultOptions: Options = {
@@ -154,13 +189,104 @@ export function breakLines(
     throw new Error('Paragraph items must end with a forced break');
   }
 
-  const hasNegativeValues = items.some((it) => {
-    if (it.type === 'box' || it.type === 'penalty') {
-      return it.width < 0;
-    } else {
-      return it.width < 0 || it.stretch < 0 || it.shrink < 0;
+  // The pruning proof below assumes glue adjustment has the usual direction:
+  // stretch cannot reduce line width, and shrink cannot increase it.
+  const hasNegativeStretchOrShrink = items.some(
+    (item) => item.type === 'glue' && (item.stretch < 0 || item.shrink < 0),
+  );
+  const hasNegativeWidths = items.some((item) => item.width < 0);
+
+  const prefixSums = items.reduce(
+    (sums, item, i) => {
+      sums.boxWidth[i + 1] = sums.boxWidth[i] + (item.type === 'box' ? item.width : 0);
+      sums.glueWidth[i + 1] = sums.glueWidth[i] + (item.type === 'glue' ? item.width : 0);
+      sums.glueStretch[i + 1] = sums.glueStretch[i] + (item.type === 'glue' ? item.stretch : 0);
+      sums.glueShrink[i + 1] = sums.glueShrink[i] + (item.type === 'glue' ? item.shrink : 0);
+      return sums;
+    },
+    {
+      boxWidth: new Array<number>(items.length + 1).fill(0),
+      glueWidth: new Array<number>(items.length + 1).fill(0),
+      glueStretch: new Array<number>(items.length + 1).fill(0),
+      glueShrink: new Array<number>(items.length + 1).fill(0),
+    },
+  );
+
+  // Precompute the suffix minimum of the line-width floor
+  //
+  //   floor = boxWidthPrefix[b + 1] + glueWidthPrefix[b] - glueShrinkPrefix[b] + penaltyWidth
+  //
+  // at each feasible breakpoint. This matches the line-measurement semantics
+  // used elsewhere in the implementation:
+  //
+  //  - boxes always count;
+  //  - glue counts only when it is interior to the line;
+  //  - only the chosen breakpoint's penalty width counts.
+  //
+  // This supports the overfull-line pruning optimization described below.
+  //
+  // The classic TeX algorithm deactivates a node when the adjustment ratio
+  // r < -1, meaning the line is overfull even at maximum shrink. Knuth & Plass
+  // (p. 1161) prove this is safe when all widths, stretches, and shrinks are
+  // non-negative (Restriction 1), since this floor can then only increase
+  // at later breakpoints.
+  //
+  // We relax this by precomputing, for each breakpoint `b`, the minimum floor
+  // value over all strictly later breakpoints (including forced breaks). At
+  // breakpoint `b`, a node `a` is pruned only when even this best-case future
+  // floor exceeds the overfull threshold for `a`.
+  //
+  // The floor-to-overfull equivalence (`floor > threshold` iff `r < -1`)
+  // requires non-negative stretch and shrink on every line segment:
+  //
+  //  - Negative shrink makes lineShrink < 0, so the floor comparison no longer
+  //    implies overfull.
+  //  - Negative stretch can produce r < -1 for underfilled lines
+  //    (actualLen < idealLen with lineStretch < 0), a case the floor check does
+  //    not cover.
+  //
+  // We therefore disable the optimization entirely when any glue has negative
+  // stretch or shrink (`hasNegativeStretchOrShrink`). When this guard allows
+  // pruning, every line segment's total stretch and shrink is also
+  // non-negative, since they are sums of per-item non-negative values. Under
+  // that condition, the floor check correctly handles negative intermediate
+  // widths, negative penalty widths, and forced breaks with negative content
+  // preceding them.
+  const suffixMinBreakpointFloor = new Array<number>(items.length).fill(Infinity);
+
+  // Whether `b` is a feasible breakpoint: glue after a box, or a legal penalty.
+  // Used by both the suffix-minimum prepass and the main loop.
+  const isFeasibleBreakpoint = (b: number) => {
+    const item = items[b];
+    return (
+      (item.type === 'glue' && b > 0 && items[b - 1].type === 'box') ||
+      (item.type === 'penalty' && item.cost < MAX_COST)
+    );
+  };
+
+  if (!hasNegativeStretchOrShrink) {
+    for (let b = 0; b < items.length; b++) {
+      if (isFeasibleBreakpoint(b)) {
+        const item = items[b];
+        const penaltyWidth = item.type === 'penalty' ? item.width : 0;
+        suffixMinBreakpointFloor[b] =
+          prefixSums.boxWidth[b + 1] +
+          prefixSums.glueWidth[b] -
+          prefixSums.glueShrink[b] +
+          penaltyWidth;
+      }
     }
-  });
+
+    // Backward pass: suffix minimum floor over strictly later breakpoints.
+    let minFloor = Infinity;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const floor = suffixMinBreakpointFloor[i];
+      if (floor !== Infinity) {
+        suffixMinBreakpointFloor[i] = minFloor;
+        minFloor = Math.min(minFloor, floor);
+      }
+    }
+  }
 
   const opts_ = { ...defaultOptions, ...opts };
   const lineLen = (i: number) => (Array.isArray(lineLengths) ? lineLengths[i] : lineLengths);
@@ -173,12 +299,9 @@ export function breakLines(
     index: number; // Index in `items`.
     line: number; // Line number.
     fitness: number;
-    // Sum of `width` up to first box or forced break after this break.
-    totalWidth: number;
-    // Sum of `stretch` up to first box or forced break after this break.
-    totalStretch: number;
-    // Sum of `shrink` up to first box or forced break after this break.
-    totalShrink: number;
+    // Whether this node was created by the bailout path rather than a
+    // feasible breakpoint.
+    isFallback: boolean;
     // Minimum sum of demerits up this break.
     totalDemerits: number;
     prev: null | Node;
@@ -186,47 +309,84 @@ export function breakLines(
 
   const active = new Set<Node>();
 
+  // nextContent[i] is the index of the first content item at or after
+  // position i (O(n) right-to-left precomputation). The sentinel at
+  // items.length means "no content found".
+  const nextContent = new Array<number>(items.length + 1);
+  nextContent[items.length] = items.length;
+  for (let i = items.length - 1; i >= 0; i--) {
+    nextContent[i] = lineStartsWithContent(items[i]) ? i : nextContent[i + 1];
+  }
+
   // Add initial active node for beginning of paragraph.
   active.add({
-    index: 0,
+    index: PARAGRAPH_START,
     line: 0,
     // Fitness is ignored for this node.
     fitness: 0,
-    totalWidth: 0,
-    totalStretch: 0,
-    totalShrink: 0,
+    isFallback: false,
     totalDemerits: 0,
     prev: null,
   });
 
-  // Sum of `width` of items up to current item.
-  let sumWidth = 0;
-  // Sum of `stretch` of glue items up to current item.
-  let sumStretch = 0;
-  // Sum of `shrink` of glue items up to current item.
-  let sumShrink = 0;
+  // Compute the width, stretch and shrink of items in a line between two
+  // breakpoints, excluding glue and penalty items at the start of the line.
+  // When rendering we ignore such items at the start of lines.
+  //
+  // Knuth's original algorithm (TeX) keeps running sums of width / stretch /
+  // shrink from the *start* of the paragraph up to every breakpoint. The values
+  // for an individual line are then obtained simply by subtracting the two
+  // totals:
+  //
+  //      lineWidth = Sum(width[0..b]) - Sum(width[0..a])
+  //      lineStretch/shrink likewise
+  //
+  // This is only correct if there is at least one box item between the two
+  // breakpoints; otherwise the subtraction would leave out the glue and
+  // penalties that precede the first box of the new line. For efficiency TeX
+  // therefore imposes Restriction 2 (p. 1156): two legal breakpoints may not be
+  // separated solely by glue and/or ordinary penalties.
+  //
+  // Instead of enforcing Restriction 2 we use `nextContent` to find the first
+  // content item on each line, then compute metrics from that point using
+  // prefix sums. This naturally excludes leading glue and penalties, so the
+  // subtraction yields correct figures even if two successive breakpoints are
+  // separated only by glue.
+  const lineMetrics = (startBreakpoint: number, endBreakpoint: number) => {
+    const rawStart =
+      startBreakpoint === PARAGRAPH_START
+        ? nextContent[0]
+        : nextContent[startBreakpoint + (items[startBreakpoint].type === 'penalty' ? 1 : 0)];
+    const start = Math.min(rawStart, endBreakpoint + 1);
+
+    if (start > endBreakpoint) {
+      return { actualLen: 0, lineStretch: 0, lineShrink: 0, startOffset: 0 };
+    }
+
+    const interiorGlueStart = Math.min(start + 1, endBreakpoint);
+    const penaltyWidth = items[endBreakpoint].type === 'penalty' ? items[endBreakpoint].width : 0;
+
+    return {
+      actualLen:
+        prefixSums.boxWidth[endBreakpoint + 1] -
+        prefixSums.boxWidth[start] +
+        (prefixSums.glueWidth[endBreakpoint] - prefixSums.glueWidth[interiorGlueStart]) +
+        penaltyWidth,
+      lineStretch:
+        prefixSums.glueStretch[endBreakpoint] - prefixSums.glueStretch[interiorGlueStart],
+      lineShrink: prefixSums.glueShrink[endBreakpoint] - prefixSums.glueShrink[interiorGlueStart],
+      startOffset:
+        prefixSums.boxWidth[start] + prefixSums.glueWidth[start] - prefixSums.glueShrink[start],
+    };
+  };
 
   let minAdjustmentRatioAboveThreshold = Infinity;
 
   for (let b = 0; b < items.length; b++) {
     const item = items[b];
 
-    // Determine if this is a feasible breakpoint and update `sumWidth`,
-    // `sumStretch` and `sumShrink`.
-    let canBreak = false;
-    if (item.type === 'box') {
-      sumWidth += item.width;
-    } else if (item.type === 'glue') {
-      canBreak = b > 0 && items[b - 1].type === 'box';
-      if (!canBreak) {
-        sumWidth += item.width;
-        sumShrink += item.shrink;
-        sumStretch += item.stretch;
-      }
-    } else if (item.type === 'penalty') {
-      canBreak = item.cost < MAX_COST;
-    }
-    if (!canBreak) {
+    // Determine if this is a feasible breakpoint.
+    if (!isFeasibleBreakpoint(b)) {
       continue;
     }
 
@@ -237,15 +397,8 @@ export function breakLines(
     active.forEach((a) => {
       // Compute adjustment ratio from `a` to `b`.
       let adjustmentRatio = 0;
-      const lineShrink = sumShrink - a.totalShrink;
-      const lineStretch = sumStretch - a.totalStretch;
       const idealLen = lineLen(a.line);
-      let actualLen = sumWidth - a.totalWidth;
-
-      // Include width of penalty in line length if chosen as a breakpoint.
-      if (item.type === 'penalty') {
-        actualLen += item.width;
-      }
+      const { actualLen, lineStretch, lineShrink, startOffset } = lineMetrics(a.index, b);
 
       if (actualLen < idealLen) {
         adjustmentRatio = (idealLen - actualLen) / lineStretch;
@@ -264,24 +417,45 @@ export function breakLines(
         );
       }
 
-      // The optimization that removes an active node when $r < –1$ is safe only if
-      // all widths, stretches, and shrinks are non–negative, as explained on p.
-      // 1161:
+      // Pruning: deactivate nodes whose lines are irrecoverably overfull.
       //
-      //   "Note that Restriction 1 makes it legitimate to deactivate a node when
-      //    we discover that $r < -1$, since $r < -1$ is equivalent to $l_l < L_{ab}
-      //    - Z_{ab}$, therefore subsequent breakpoints $b' > b$ will have $L_{ab'}
-      //    - Z_{ab'} >= L_{ab} - Z_{ab}$. Thus it is not difficult to verify that
-      //    the algorithm does indeed find an optimal solution: Given any sequence
-      //    of feasible breakpoints $b_1 < ... < b_k$, we can prove by induction on
-      //    $j$ that the algorithm constructs a node for a feasible break at $j$,
-      //    with appropriate line numbers and fitness classifications, having no
-      //    more demerits than the given sequence does."
+      // Four conditions must hold (besides the forced-break case):
       //
-      // Therefore, we deactivate an active node in the usual TeX way only when the
-      // paragraph satisfies Restriction 1 (i.e., no negative values). Forced breaks
-      // are always allowed to prune the list.
-      if ((!hasNegativeValues && adjustmentRatio < MIN_ADJUSTMENT_RATIO) || isForcedBreak(item)) {
+      // 1. `!hasNegativeStretchOrShrink`: negative glue stretch or shrink
+      //    breaks the floor-to-overfull equivalence (see the prepass comment
+      //    above), so we disable pruning entirely in that case. This is a
+      //    paragraph-wide guard, not a per-line check.
+      //
+      // 2. `!a.isFallback || !hasNegativeWidths`: synthetic fallback nodes are
+      //    created after the algorithm gives up on finding a feasible break.
+      //    With negative widths present, a later breakpoint can still reduce
+      //    the line-width floor relative to such a node, so we avoid applying
+      //    this pruning rule to fallback nodes in that case.
+      //
+      // 3. `adjustmentRatio < -1`: the current line from `a` to `b` is
+      //    itself overfull. This matches the classic TeX condition once the
+      //    line-relative stretch and shrink are known to be non-negative.
+      //
+      // 4. `futureMinFloor > overfullThreshold`: all future breakpoints
+      //    would also produce overfull lines from `a`. The precomputed suffix
+      //    minimum of the line-width floor over breakpoints strictly after `b`
+      //    gives the best-case future floor in the same coordinate system as
+      //    `lineMetrics`; when it exceeds `idealLen + startOffset`, no future
+      //    breakpoint can rescue the line. Under Restriction 1 this is always
+      //    satisfied when r < -1. For inputs with negative widths or penalty
+      //    widths (but non-negative stretch/shrink), it prevents unsound
+      //    pruning when a future breakpoint could rescue the line.
+      //
+      // Forced breaks always deactivate, regardless of the adjustment ratio.
+      const overfullThreshold = idealLen + startOffset;
+      const futureMinFloor = suffixMinBreakpointFloor[b];
+      const canUsePruning = (!a.isFallback || !hasNegativeWidths) && !hasNegativeStretchOrShrink;
+      if (
+        isForcedBreak(item) ||
+        (canUsePruning &&
+          adjustmentRatio < MIN_ADJUSTMENT_RATIO &&
+          futureMinFloor > overfullThreshold)
+      ) {
         // Items from `a` to `b` cannot fit on one line.
         active.delete(a);
         lastActive = a;
@@ -302,8 +476,8 @@ export function breakLines(
         }
 
         let doubleHyphenPenalty = 0;
-        const prevItem = items[a.index];
-        if (item.type === 'penalty' && prevItem.type === 'penalty') {
+        const prevItem = a.index === PARAGRAPH_START ? null : items[a.index];
+        if (item.type === 'penalty' && prevItem?.type === 'penalty') {
           if (item.flagged && prevItem.flagged) {
             doubleHyphenPenalty = opts_.doubleHyphenPenalty;
           }
@@ -321,70 +495,15 @@ export function breakLines(
         } else {
           fitness = 3;
         }
-        if (a.index > 0 && Math.abs(fitness - a.fitness) > 1) {
+        if (a.index !== PARAGRAPH_START && Math.abs(fitness - a.fitness) > 1) {
           demerits += opts_.adjacentLooseTightPenalty;
-        }
-
-        // If this breakpoint is followed by glue or non-breakable penalty items
-        // then we don't want to include the width of those when calculating the
-        // width of lines starting after this breakpoint. This is because when
-        // rendering we ignore glue/penalty items at the start of lines.
-        //
-        // Knuth’s original algorithm (TeX) keeps running sums of width / stretch /
-        // shrink from the *start* of the paragraph up to every breakpoint. The
-        // values for an individual line are then obtained simply by subtracting the
-        // two totals:
-        //
-        //      lineWidth = Σwidth[b] − Σwidth[a]
-        //      lineStretch/shrink likewise
-        //
-        // This is only correct if there is at least one **box** item between the
-        // two breakpoints; otherwise the subtraction would leave out the glue and
-        // penalties that precede the first box of the new line. For efficiency TeX
-        // therefore imposes Restriction 2 (p. 1156): two legal breakpoints may not
-        // be separated solely by glue and/or ordinary penalties.
-        //
-        // Instead of enforcing Restriction 2 we take a different approach: whenever
-        // we create a node for a candidate breakpoint `b` we *look ahead* until we
-        // reach the next box (or an unbreakable penalty) and add the intervening
-        // width/stretch/shrink to the node’s accumulated totals. Hence
-        //
-        //      node.totalWidth   = Σwidth up to the first box of the next line
-        //      node.totalStretch = …
-        //      node.totalShrink  = …
-        //
-        // With these augmented totals the simple subtraction still yields the correct
-        // figures even if two successive breakpoints are separated only by glue.
-        // The price is a tiny extra scan per node, which is acceptable for the sizes
-        // we deal with here and keeps the rest of the algorithm (and the input it can
-        // accept) simple.
-        let widthToNextBox = 0;
-        let shrinkToNextBox = 0;
-        let stretchToNextBox = 0;
-        // A penalty's width (e.g. a hyphen) is charged to the line that ends
-        // here, not the next line. Skip it so it doesn't inflate the totals.
-        for (let bp = b + (item.type === 'penalty' ? 1 : 0); bp < items.length; bp++) {
-          const item = items[bp];
-          if (item.type === 'box') {
-            break;
-          }
-          if (item.type === 'penalty' && item.cost >= MAX_COST) {
-            break;
-          }
-          widthToNextBox += item.width;
-          if (item.type === 'glue') {
-            shrinkToNextBox += item.shrink;
-            stretchToNextBox += item.stretch;
-          }
         }
 
         const node = {
           index: b,
           line: a.line + 1,
           fitness,
-          totalWidth: sumWidth + widthToNextBox,
-          totalShrink: sumShrink + shrinkToNextBox,
-          totalStretch: sumStretch + stretchToNextBox,
+          isFallback: false,
           totalDemerits: a.totalDemerits + demerits,
           prev: a,
         };
@@ -422,19 +541,11 @@ export function breakLines(
           index: b,
           line: lastActive!.line + 1,
           fitness: 1,
-          totalWidth: sumWidth,
-          totalShrink: sumShrink,
-          totalStretch: sumStretch,
+          isFallback: true,
           totalDemerits: lastActive!.totalDemerits + 1000,
           prev: lastActive!,
         });
       }
-    }
-
-    if (item.type === 'glue') {
-      sumWidth += item.width;
-      sumStretch += item.stretch;
-      sumShrink += item.shrink;
     }
   }
 
@@ -458,7 +569,7 @@ export function breakLines(
   const output = [];
   let next: Node | null = bestNode!;
   while (next) {
-    output.push(next.index);
+    output.push(next.index === PARAGRAPH_START ? 0 : next.index);
     next = next.prev;
   }
   output.reverse();
@@ -508,7 +619,11 @@ export function adjustmentRatios(
     let lineShrink = 0;
     let lineStretch = 0;
 
-    const start = b === 0 ? breakpoints[b] : breakpoints[b] + 1;
+    const start = lineContentStart(
+      items,
+      b === 0 ? PARAGRAPH_START : breakpoints[b],
+      breakpoints[b + 1],
+    );
     for (let p = start; p <= breakpoints[b + 1]; p++) {
       const item = items[p];
       if (item.type === 'box') {
@@ -563,7 +678,11 @@ export function positionItems(
     // item in a line.
     const adjustmentRatio = Math.max(adjRatios[b], MIN_ADJUSTMENT_RATIO);
     let xOffset = 0;
-    const start = b === 0 ? breakpoints[b] : breakpoints[b] + 1;
+    const start = lineContentStart(
+      items,
+      b === 0 ? PARAGRAPH_START : breakpoints[b],
+      breakpoints[b + 1],
+    );
 
     for (let p = start; p <= breakpoints[b + 1]; p++) {
       const item = items[p];

@@ -2,10 +2,12 @@ import { layoutItemsFromString, layoutText, TextBox } from './helpers';
 import {
   breakLines,
   forcedBreak,
+  lineContentStart,
   InputItem,
   MaxAdjustmentExceededError,
   Box,
   Glue,
+  PARAGRAPH_START,
   Penalty,
 } from './layout';
 import { textNodesInRange } from './util/range';
@@ -23,6 +25,40 @@ type DOMBox = Box & NodeOffset;
 type DOMGlue = Glue & NodeOffset;
 type DOMPenalty = Penalty & NodeOffset;
 type DOMItem = DOMBox | DOMGlue | DOMPenalty;
+
+function setRangeStartAtItem(r: Range, item: DOMItem) {
+  if (item.node instanceof Text) {
+    r.setStart(item.node, item.start);
+    return;
+  }
+
+  const parent = item.node.parentNode;
+  if (!parent) {
+    r.setStart(item.node, item.start);
+    return;
+  }
+
+  const childIndex = Array.prototype.indexOf.call(parent.childNodes, item.node);
+  if (childIndex === -1) {
+    r.setStart(item.node, item.start);
+    return;
+  }
+
+  r.setStart(parent, childIndex);
+}
+
+function lineStartItem(items: DOMItem[], breakpoint: number, nextBreakpoint: number) {
+  const startIndex = lineContentStart(items, breakpoint, nextBreakpoint);
+  return startIndex <= nextBreakpoint ? items[startIndex] : null;
+}
+
+function isolateRangeStart(r: Range) {
+  const { startContainer, startOffset } = r;
+  if (startContainer instanceof Text && startOffset > 0 && startOffset < startContainer.length) {
+    const remainder = startContainer.splitText(startOffset);
+    r.setStart(remainder, 0);
+  }
+}
 
 /**
  * Add layout items for `node` to `items`.
@@ -207,7 +243,11 @@ function lineWidthsAndGlueCounts(items: InputItem[], breakpoints: number[]) {
     let actualWidth = 0;
     let glueCount = 0;
 
-    const start = b === 0 ? breakpoints[b] : breakpoints[b] + 1;
+    const start = lineContentStart(
+      items,
+      b === 0 ? PARAGRAPH_START : breakpoints[b],
+      breakpoints[b + 1],
+    );
     for (let p = start; p <= breakpoints[b + 1]; p++) {
       const item = items[p];
       if (item.type === 'box') {
@@ -384,19 +424,27 @@ export function justifyContent(
     // we create the Range.
     const endsWithHyphen: boolean[] = [];
     const lineRanges: Range[] = [];
+    const visibleLineWidths: number[] = [];
+    const visibleGlueCounts: number[] = [];
     for (let b = 1; b < breakpoints.length; b++) {
-      const prevBreakItem = items[breakpoints[b - 1]];
-      const breakItem = items[breakpoints[b]];
-
-      const r = document.createRange();
-      if (b > 1) {
-        r.setStart(prevBreakItem.node, prevBreakItem.end);
-      } else {
-        r.setStart(el, 0);
+      const breakpoint = breakpoints[b];
+      const startItem = lineStartItem(
+        items,
+        b > 1 ? breakpoints[b - 1] : PARAGRAPH_START,
+        breakpoint,
+      );
+      if (!startItem) {
+        continue;
       }
+
+      const breakItem = items[breakpoint];
+      const r = document.createRange();
+      setRangeStartAtItem(r, startItem);
       r.setEnd(breakItem.node, breakItem.start);
       lineRanges.push(r);
       endsWithHyphen.push(breakItem.type === 'penalty' && breakItem.flagged);
+      visibleLineWidths.push(actualWidths[b - 1]);
+      visibleGlueCounts.push(glueCounts[b - 1]);
     }
 
     // Disable automatic line wrap.
@@ -419,8 +467,10 @@ export function justifyContent(
 
     // Adjust inter-word spacing on each line and add hyphenation if needed.
     lineRanges.forEach((r, i) => {
-      const spaceDiff = lineWidth - actualWidths[i];
-      const extraSpacePerGlue = spaceDiff / glueCounts[i];
+      isolateRangeStart(r);
+
+      const spaceDiff = lineWidth - visibleLineWidths[i];
+      const extraSpacePerGlue = spaceDiff / visibleGlueCounts[i];
 
       // If this is the final line and the natural spacing between words does
       // not need to be compressed, then don't try to expand the spacing to fill
