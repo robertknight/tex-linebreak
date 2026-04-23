@@ -1,4 +1,4 @@
-import { assert } from 'chai';
+import { assert, describe, it } from 'vitest';
 import { XorShift } from 'xorshift';
 
 import {
@@ -8,8 +8,6 @@ import {
   MAX_COST,
   MIN_COST,
   positionItems,
-  Box,
-  Glue,
   InputItem,
   MaxAdjustmentExceededError,
   Penalty,
@@ -67,7 +65,7 @@ function readLayoutFixture(content: string): LayoutFixture {
   const outputs = [];
   for (let i = 1; i < sections.length; i += 2) {
     const outputSettings = JSON.parse(sections[i]);
-    const outputLines = sections[i + 1].split('\n').filter(l => l.length > 0);
+    const outputLines = sections[i + 1].split('\n').filter((l) => l.length > 0);
 
     outputs.push({
       layoutOptions: {
@@ -94,7 +92,7 @@ function repeat<T>(arr: T[], count: number) {
 }
 
 function itemsFromString(s: string, charWidth: number, glueStretch: number): TextInputItem[] {
-  const items = s.split(/(\s+|-)/).map(substr => {
+  const items = s.split(/(\s+|-)/).map((substr) => {
     const width = substr.length * charWidth;
     if (substr.match(/^\s+$/)) {
       return { type: 'glue', width, shrink: 2, stretch: glueStretch, text: substr } as TextGlue;
@@ -429,20 +427,14 @@ describe('layout', () => {
 
         // Check that breakpoints occur at expected positions.
         const actualLines = chunk(breakpoints, 2)
-          .map(([start, end]) =>
-            items
-              .slice(start, end)
-              .map(itemText)
-              .join('')
-              .trim(),
-          )
-          .filter(l => l.length > 0);
+          .map(([start, end]) => items.slice(start, end).map(itemText).join('').trim())
+          .filter((l) => l.length > 0);
 
         assert.deepEqual(actualLines, lines);
 
         // Check that adjustment ratios for each line are in range.
         const adjRatios = adjustmentRatios(items, layoutOptions.lineWidths, breakpoints);
-        adjRatios.forEach(ar => {
+        adjRatios.forEach((ar) => {
           assert.isAtLeast(ar, -1);
           assert.isAtMost(ar, layoutOptions.maxAdjustmentRatio);
         });
@@ -534,12 +526,7 @@ describe('layout', () => {
     });
 
     it('ignores leading penalty and glue at the start of the paragraph', () => {
-      const items: InputItem[] = [
-        penalty(0, 0, false),
-        glue(5, 0, 0),
-        box(5),
-        forcedBreak(),
-      ];
+      const items: InputItem[] = [penalty(0, 0, false), glue(5, 0, 0), box(5), forcedBreak()];
       const breakpoints = breakLines(items, 5);
       assert.deepEqual(breakpoints, [0, 3]);
       assert.deepEqual(adjustmentRatios(items, 5, breakpoints), [0]);
@@ -548,24 +535,21 @@ describe('layout', () => {
       ]);
     });
 
-    it(
-      'changes behavior when negative glue cannot rescue a later line',
-      () => {
-        // Under the old `hasNegativeValues` guard, the negative glue width
-        // disabled pruning and the algorithm fell back to [0, 4]. The new
-        // rule still prunes this irrecoverably overfull node and isolates the
-        // wide box at [0, 3, 4].
-        const items: InputItem[] = [
-          box(5),
-          glue(-1, 0, 0),
-          box(100),
-          glue(10, 10, 10),
-          forcedBreak(),
-        ];
-        const breakpoints = breakLines(items, 50);
-        assert.deepEqual(breakpoints, [0, 3, 4]);
-      },
-    );
+    it('changes behavior when negative glue cannot rescue a later line', () => {
+      // Under the old `hasNegativeValues` guard, the negative glue width
+      // disabled pruning and the algorithm fell back to [0, 4]. The new
+      // rule still prunes this irrecoverably overfull node and isolates the
+      // wide box at [0, 3, 4].
+      const items: InputItem[] = [
+        box(5),
+        glue(-1, 0, 0),
+        box(100),
+        glue(10, 10, 10),
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, 50);
+      assert.deepEqual(breakpoints, [0, 3, 4]);
+    });
 
     it('does not keep splitting a negative-width fallback segment', () => {
       // The first bailout at index 1 is intentional: the opening box is
@@ -595,85 +579,68 @@ describe('layout', () => {
       assert.deepEqual(breakpoints, [0, 1, 13]);
     });
 
-    it(
-      'keeps the optimal breaks when negative penalty width rescues a line',
-      () => {
-        // line 0->3: box(11) + box(1) + penalty_width(-2) = 10   r = 0
-        // line 3->6: box(10) + glue(0, stretch=1000)             r \approx 0
-        //
-        // At breakpoint 1 (penalty(0)), the line from node 0 is
-        // box(11) = 11 > lineWidth(10) with zero shrink, giving r = -inf. A
-        // naive pruning rule would discard node 0 here. But the later
-        // breakpoint at penalty(-2) rescues the line: base width 12 plus
-        // penalty width -2 = 10. The suffix-minimum guard must keep node 0
-        // alive.
-        const items: InputItem[] = [
-          box(11),
-          penalty(0, 0, false),
-          box(1),
-          penalty(-2, 0, false),
-          box(10),
-          glue(0, 0, 1000),
-          forcedBreak(),
-        ];
-        const breakpoints = breakLines(items, 10);
-        assert.deepEqual(breakpoints, [0, 3, 6]);
-      },
-    );
+    it('keeps the optimal breaks when negative penalty width rescues a line', () => {
+      // line 0->3: box(11) + box(1) + penalty_width(-2) = 10   r = 0
+      // line 3->6: box(10) + glue(0, stretch=1000)             r \approx 0
+      //
+      // At breakpoint 1 (penalty(0)), the line from node 0 is
+      // box(11) = 11 > lineWidth(10) with zero shrink, giving r = -inf. A
+      // naive pruning rule would discard node 0 here. But the later
+      // breakpoint at penalty(-2) rescues the line: base width 12 plus
+      // penalty width -2 = 10. The suffix-minimum guard must keep node 0
+      // alive.
+      const items: InputItem[] = [
+        box(11),
+        penalty(0, 0, false),
+        box(1),
+        penalty(-2, 0, false),
+        box(10),
+        glue(0, 0, 1000),
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, 10);
+      assert.deepEqual(breakpoints, [0, 3, 6]);
+    });
 
-    it(
-      'keeps the optimal breaks when interior negative glue rescues a line',
-      () => {
-        // At breakpoint 1, the line from node 0 is overfull: box(11) > 10.
-        // A later ordinary breakpoint is still viable because the interior
-        // glue(-4) and box(3) bring the total back to 10.
-        const items: InputItem[] = [
-          box(11),
-          penalty(0, 0, false),
-          glue(-4, 0, 0),
-          box(3),
-          penalty(0, 0, false),
-          box(10),
-          forcedBreak(),
-        ];
-        const breakpoints = breakLines(items, 10);
-        assert.deepEqual(breakpoints, [0, 4, 6]);
-      },
-    );
+    it('keeps the optimal breaks when interior negative glue rescues a line', () => {
+      // At breakpoint 1, the line from node 0 is overfull: box(11) > 10.
+      // A later ordinary breakpoint is still viable because the interior
+      // glue(-4) and box(3) bring the total back to 10.
+      const items: InputItem[] = [
+        box(11),
+        penalty(0, 0, false),
+        glue(-4, 0, 0),
+        box(3),
+        penalty(0, 0, false),
+        box(10),
+        forcedBreak(),
+      ];
+      const breakpoints = breakLines(items, 10);
+      assert.deepEqual(breakpoints, [0, 4, 6]);
+    });
 
-    it(
-      'keeps the optimal breaks when pre-break negative content rescues a line',
-      () => {
-        // box(11) + glue(-2) = 9 at the forced break -> single line [0, 3].
-        // At penalty(0) (index 1), the line width is 11 > 10, but the
-        // negative glue before the forced break brings it to 9 < 10.
-        const items: InputItem[] = [
-          box(11),
-          penalty(0, 0, false),
-          glue(-2, 0, 0),
-          forcedBreak(),
-        ];
-        const breakpoints = breakLines(items, 10);
-        assert.deepEqual(breakpoints, [0, 3]);
-      },
-    );
+    it('keeps the optimal breaks when pre-break negative content rescues a line', () => {
+      // box(11) + glue(-2) = 9 at the forced break -> single line [0, 3].
+      // At penalty(0) (index 1), the line width is 11 > 10, but the
+      // negative glue before the forced break brings it to 9 < 10.
+      const items: InputItem[] = [box(11), penalty(0, 0, false), glue(-2, 0, 0), forcedBreak()];
+      const breakpoints = breakLines(items, 10);
+      assert.deepEqual(breakpoints, [0, 3]);
+    });
 
-    it(
-      'does not prune when a forced break has a negative penalty width',
-      () => {
-        // box(11) + box(1) + penalty_width(-2) = 10 at the forced break.
-        // At penalty(0) (index 1), the line width is 11 > 10, but the
-        // forced break's negative width makes the line exactly 10.
-        const items: InputItem[] = [
-          box(11),
-          penalty(0, 0, false),
-          box(1),
-          penalty(-2, MIN_COST, false),
-        ];
-        const breakpoints = breakLines(items, 10);
-        assert.deepEqual(breakpoints, [0, 3]);
-      },
-    );
+    it('does not prune when a forced break has a negative penalty width', () => {
+      // box(11) + box(1) + penalty_width(-2) = 10 at the forced break.
+      // At penalty(0) (index 1), the line width is 11 > 10, but the
+      // forced break's negative width makes the line exactly 10.
+      const items: InputItem[] = [
+        box(11),
+        penalty(0, 0, false),
+        box(1),
+        penalty(-2, MIN_COST, false),
+      ];
+      const breakpoints = breakLines(items, 10);
+      assert.deepEqual(breakpoints, [0, 3]);
+    });
 
     it('does not prune when glue shrink is negative', () => {
       // The suffix-minimum floor argument assumes shrink cannot increase line
@@ -801,7 +768,6 @@ describe('layout', () => {
       const prng = new (XorShift as any)([1, 10, 15, 20]);
       const wordSoup = (length: number) => {
         let result: InputItem[] = [];
-        let wordLen = 5;
         while (result.length < length) {
           result.push({ type: 'box', width: prng.random() * 20 });
           result.push({ type: 'glue', width: 6, shrink: 3, stretch: 5 });

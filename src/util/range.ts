@@ -31,7 +31,6 @@ export function textNodesInRange(range: Range, filter: (n: Node) => boolean) {
   );
 
   let currentNode: Node | null = nodeIter.currentNode;
-  let foundStart = false;
   let nodes: Text[] = [];
 
   while (currentNode) {
