@@ -31,7 +31,7 @@
     "playwright": "^1.59.1",
     "prettier": "^3.8.2",
     "typescript": "^6.0.2",
-    "vite": "^8.0.10",
+    "vite": "^8.0.16",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^4.1.2",
     "xorshift": "^1.2.0"
